@@ -1,12 +1,33 @@
+from ast import List
 import asyncio
 from date_simulator import DateSimulator
 import dotenv
+from pydantic import BaseModel
+
 dotenv.load_dotenv()
+
+class DateParticipant(BaseModel):
+    name: str
+    system_message: str
+
+async def simulate_and_summarize_date(participants: List[DateParticipant]) -> str:
+    # Run the simulation
+    simulator = DateSimulator(max_messages=10)
+    simulator.initialize_model_client()
+    for participant in participants:
+        simulator.add_participant(participant.name, participant.system_message)
+    result = await simulator.simulate_date()
+    
+    # Get and print the summary
+    print("\n\n=== Date Summary ===\n")
+    summary = await simulator.summarize_date(result)
+    print(summary)
+    return summary
 
 async def main() -> None:
     # Create and initialize the date simulator
     simulator = DateSimulator(max_messages=10)
-    await simulator.initialize_model_client()
+    simulator.initialize_model_client()
     
     # Add participants
     simulator.add_participant(
