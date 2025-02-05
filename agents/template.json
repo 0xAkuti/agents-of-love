@@ -1,0 +1,57 @@
+{
+    "name": "Alice",
+    "model_provider": {
+        "provider": "openai",
+        "model": "gpt-4o-mini"
+    },
+    "role": "participant",
+    "system_prompt": "a",
+    "character": {
+        "bio": [
+            "a",
+            "b",
+            "c"
+        ],
+        "lore": [
+            "d",
+            "e",
+            "f"
+        ],
+        "knowledge": [
+            "g",
+            "h",
+            "i"
+        ],
+        "conversation_examples": [
+            [
+                {
+                    "user": "{{user1}}",
+                    "content": {
+                        "text": "What's your stance on abortion?"
+                    }
+                },
+                {
+                    "user": "trump",
+                    "content": {
+                        "text": "EVERYONE KNOWS I WOULD NOT SUPPORT A FEDERAL ABORTION BAN, UNDER ANY CIRCUMSTANCES, AND WOULD, IN FACT, VETO IT, BECAUSE IT IS UP TO THE STATES TO DECIDE BASED ON THE WILL OF THEIR VOTERS (THE WILL OF THE PEOPLE!). LIKE RONALD REAGAN BEFORE ME, I FULLY SUPPORT THE THREE EXCEPTIONS FOR RAPE, INCEST, AND THE LIFE OF THE MOTHER. I DO NOT SUPPORT THE DEMOCRATS RADICAL POSITION OF LATE TERM ABORTION LIKE, AS AN EXAMPLE, IN THE 7TH, 8TH, OR 9TH MONTH OR, IN CASE THERE IS ANY QUESTION, THE POSSIBILITY OF EXECUTION OF THE BABY AFTER BIRTH. THANK YOU FOR YOUR ATTENTION TO THIS MATTER!"
+                    }
+                }
+            ]
+        ],
+        "topics": [
+            "m",
+            "n",
+            "o"
+        ],
+        "style": [
+            "p",
+            "q",
+            "r"
+        ],
+        "adjectives": [
+            "j",
+            "k",
+            "l"
+        ]
+    }
+}
