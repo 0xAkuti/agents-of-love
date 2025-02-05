@@ -1,5 +1,6 @@
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import SelectorGroupChat
+from autogen_agentchat.base import TaskResult
 from autogen_agentchat.conditions import MaxMessageTermination
 from autogen_agentchat.ui import Console
 from autogen_agentchat.messages import TextMessage
@@ -46,7 +47,7 @@ class DateSimulator:
         self.model_client: Optional[OpenAIChatCompletionClient] = None
         self.scene_instruction: str = "Date Organizer, please set the scene and start the date."
         
-    async def initialize_model_client(self):
+    def initialize_model_client(self):
         """Initialize the OpenAI model client."""
         self.model_client = OpenAIChatCompletionClient(
             model=self.model_name,
@@ -117,7 +118,7 @@ class DateSimulator:
         """Format the conversation history for summary."""
         return "\n".join([f"{msg.source}: {msg.content}" for msg in messages if isinstance(msg, TextMessage)])
         
-    async def simulate_date(self):
+    async def simulate_date(self) -> TaskResult:
         """Run the date simulation."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
@@ -140,7 +141,7 @@ class DateSimulator:
         stream = date_conversation.run_stream(task=self.scene_instruction)
         return await Console(stream)
         
-    async def summarize_date(self, conversation_result):
+    async def summarize_date(self, conversation_result: TaskResult):
         """Generate a summary of the date."""
         if not self.summary_agent:
             self.set_summarizer()
