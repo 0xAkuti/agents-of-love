@@ -3,6 +3,8 @@ from pydantic import BaseModel
 import enum
 import pathlib
 import random
+import uuid
+from pydantic import Field
 
 class StoreableBaseModel(BaseModel):
     def save(self, path: str | pathlib.Path):
@@ -42,9 +44,10 @@ class AgentRole(str, enum.Enum):
     SUMMARIZER = "summarizer"
     MATCHMAKER = "matchmaker"
     SPEAKER_SELECTOR = "speaker_selector"
-    
+    ASSISTANT = "assistant"
     
 class Agent(StoreableBaseModel):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
     name: str
     model_provider: ModelProvider
     role: AgentRole
