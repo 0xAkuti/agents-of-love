@@ -116,7 +116,7 @@ class DateSimulator:
         
     def _format_conversation_history(self, messages: List[TextMessage]) -> str:
         """Format the conversation history for summary."""
-        return "\n".join([f"{msg.source}: {msg.content}" for msg in messages if isinstance(msg, TextMessage)])
+        return "\n\n".join([f"*{msg.source}*: {msg.content}" for msg in messages if isinstance(msg, TextMessage)])
         
     async def simulate_date(self) -> TaskResult:
         """Run the date simulation."""

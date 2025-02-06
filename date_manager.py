@@ -73,6 +73,20 @@ class DateManager:
         Keep your responses natural while staying true to your character."""
         
         return prompt
+
+    def save_conversation(self, result: TaskResult, summary: str, match_name: str):
+        # Get next conversation number
+        i = 1
+        base_path = pathlib.Path("./conversations")
+        while any(f.name.startswith(f"{i}_") for f in base_path.glob("*.md")):
+            i += 1
+            
+        # save chat and summary as markdown
+        with open(base_path / f"{i}_{self.user_profile.name}_{match_name}.md", "w") as f:
+            f.write(f"# Conversation between {self.user_profile.name} and {match_name}\n")
+            f.write(self.simulator._format_conversation_history(result.messages))
+            f.write("\n# Summary\n")
+            f.write(summary)
         
     async def run_date_simulation(self, user_prompt: str, match_name: str, match_prompt: str) -> str:
         """Run a date simulation with the user's character and their match."""
@@ -92,16 +106,16 @@ class DateManager:
         # Run the simulation
         result = await self.simulator.simulate_date()
         summary = await self.simulator.summarize_date(result)
+        self.save_conversation(result, summary, match_name)
         return summary
         
     async def create_user_profile(self, profile_data: Dict[str, Any]):
-        """Create a user profile from the collected data as a python dict."""
+        """Create a user profile from the collected data as a python dict and without any markdown formatting."""
         self.user_profile = UserProfile(**profile_data)
         return f"Created profile for {self.user_profile.name}"
         
     async def run_simulation(self, match_name: str, match_prompt: str) -> str:
-        """Run a date simulation with the specified match.
-        For the match, come up with a name and interesting system prompt describing the match's character."""
+        """Run a date simulation with the specified match."""
         if not self.user_profile:
             return "Error: User profile not created yet. Please provide user information first."
             
