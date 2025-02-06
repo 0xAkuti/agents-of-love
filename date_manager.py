@@ -1,6 +1,7 @@
 import asyncio
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
+from autogen_agentchat.base import TaskResult
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.conditions import MaxMessageTermination
@@ -8,13 +9,14 @@ from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from date_simulator import DateSimulator
+from model import Agent, AgentRole, StoreableBaseModel
 import os
+import pathlib
 import dotenv
-import json
 
 dotenv.load_dotenv()
 
-class UserProfile(BaseModel):
+class UserProfile(StoreableBaseModel):
     name: str
     interests: List[str]
     personality_traits: List[str]
@@ -29,39 +31,21 @@ class DateManager:
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
         
+        # Load agent templates
+        self.manager_template = Agent.load(pathlib.Path("agents/date_manager.json"))
+        self.organizer_template = Agent.load(pathlib.Path("agents/date_organizer.json"))
+        self.summarizer_template = Agent.load(pathlib.Path("agents/date_summarizer.json"))
+        
         # Create the date manager agent
         self.manager_agent = AssistantAgent(
-            name="DateManager",
-            system_message="""You are a friendly and professional date manager who helps set up dates.
-            Your role is to:
-            1. Collect information about the user by asking relevant questions
-            2. Help generate an appropriate system prompt for their date character
-            3. Run date simulations when requested
-            4. Provide summaries and feedback
-            
-            When collecting information:
-            - Ask about interests, personality traits, and conversation style
-            - Get details about what they like and dislike
-            - Understand their ideal date scenario
-            
-            IMPORTANT: After collecting information, create a UserProfile using this format:
-            {
-                "name": "user's name",
-                "interests": ["interest1", "interest2", ...],
-                "personality_traits": ["trait1", "trait2", ...],
-                "conversation_style": ["style1", "style2", ...],
-                "dislikes": ["dislike1", "dislike2", ...]
-            }
-            
-            Then ask the user if they want to start a date simulation. If yes, use the run_simulation function
-            with an appropriate match (e.g., someone with contrasting interests for an interesting dynamic).
-            
-            Be conversational and friendly while gathering information.""",
+            name=self.manager_template.name,
+            system_message=self.manager_template.system_prompt,
             model_client=self.model_client,
             tools=[self.create_user_profile, self.run_simulation]
         )
         
         self.user_profile: Optional[UserProfile] = None
+        self.simulator: Optional[DateSimulator] = None
         
     def generate_system_prompt(self, profile: UserProfile) -> str:
         """Generate a system prompt based on the user's profile."""
@@ -92,16 +76,22 @@ class DateManager:
         
     async def run_date_simulation(self, user_prompt: str, match_name: str, match_prompt: str) -> str:
         """Run a date simulation with the user's character and their match."""
-        simulator = DateSimulator(max_messages=10)
-        simulator.initialize_model_client()
+        self.simulator = DateSimulator(max_messages=10)
+        self.simulator.initialize_model_client()
+        
+        # Create date organizer from template
+        self.simulator.set_date_organizer(self.organizer_template.system_prompt)
         
         # Add the participants
-        simulator.add_participant(self.user_profile.name, user_prompt)
-        simulator.add_participant(match_name, match_prompt)
+        self.simulator.add_participant(self.user_profile.name, user_prompt)
+        self.simulator.add_participant(match_name, match_prompt)
+        
+        # Set the summarizer from template
+        self.simulator.set_summarizer(self.summarizer_template.system_prompt)
         
         # Run the simulation
-        result = await simulator.simulate_date()
-        summary = await simulator.summarize_date(result)
+        result = await self.simulator.simulate_date()
+        summary = await self.simulator.summarize_date(result)
         return summary
         
     async def create_user_profile(self, profile_data: Dict[str, Any]):
