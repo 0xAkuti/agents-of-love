@@ -9,6 +9,10 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from typing import Optional, List, Dict
 import os
 import dotenv
+import pathlib
+from model import Agent
+import argparse
+import asyncio
 dotenv.load_dotenv()
 
 class DateSimulator:
@@ -165,3 +169,46 @@ Focus on:
             cancellation_token=CancellationToken(),
         )
         return summary_response.chat_message.content
+
+    def save_conversation(self, result: TaskResult, summary: str):
+        # Get next conversation number
+        i = 1
+        base_path = pathlib.Path("./conversations")
+        while any(f.name.startswith(f"{i}_") for f in base_path.glob("*.md")):
+            i += 1
+            
+        # save chat and summary as markdown
+        with open(base_path / f"{i}_{'_'.join(self.participants.keys())}.md", "w") as f:
+            f.write(f"# Conversation between {'_'.join(self.participants.keys())}\n")
+            f.write(self._format_conversation_history(result.messages))
+            f.write("\n# Summary\n")
+            f.write(summary)
+
+async def main(args: argparse.Namespace):
+    simulator = DateSimulator()
+    simulator.initialize_model_client()
+    participants = args.participants.split(",")
+    # load participants from json file
+    available_participants: list[Agent] = []
+    for file in pathlib.Path("agents").glob("*.json"):
+        available_participants.append(Agent.load(file))
+    for participant in participants:
+        for available_participant in available_participants:
+            if available_participant.name == participant:
+                simulator.add_participant(available_participant.name, available_participant.get_full_system_prompt(num_examples=4))
+    result = await simulator.simulate_date()
+    summary = await simulator.summarize_date(result)
+    print('SUMMARY:\n')
+    print(summary)
+    simulator.save_conversation(result, summary)
+
+if __name__ == "__main__":
+    # run like this:
+    # python date_simulator.py --participants "Alice, Bob" --max_messages 10
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--participants", type=str, required=True)
+    parser.add_argument("-m", "--max_messages", type=int, required=True)
+    args = parser.parse_args()
+    
+    asyncio.run(main(args))
+    
