@@ -1,0 +1,65 @@
+import logging
+import logging.handlers
+import os
+
+import dotenv
+import discord
+from discord.ext import commands
+
+dotenv.load_dotenv(override=True)
+
+logger = logging.getLogger("aol")
+logger.setLevel(logging.INFO)
+logging.getLogger("discord.http").setLevel(logging.INFO)
+
+handler = logging.handlers.RotatingFileHandler(
+    filename="aol.log",
+    encoding="utf-8",
+    maxBytes=32 * 1024 * 1024,  # 32 MiB
+    backupCount=5,  # Rotate through 5 files
+)
+dt_fmt = "%Y-%m-%d %H:%M:%S"
+formatter = logging.Formatter(
+    "[{asctime}] [{levelname:<8}] {name}: {message}", dt_fmt, style="{"
+)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.addHandler(logging.StreamHandler())
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.reactions = True
+client = discord.Client(intents=intents)
+
+
+@client.event
+async def on_message(message: discord.Message):
+    logger.info(
+        {"message": message.content, "author": message.author, "id": message.id}
+    )
+    if message.author.id == client.user.id: # Not talking to myself
+        return
+    if message.author.bot: # Not talking to other bots
+        return
+    await message.reply("Hello!")
+
+
+@client.event
+async def on_reaction_add(reaction, user):
+    message = reaction.message
+    logger.info(
+        {
+            "message": message.content,
+            "author": message.author,
+            "id": message.id,
+            "reaction": reaction.emoji,
+            "reactor": user,
+        }
+    )
+
+@client.event
+async def on_ready():
+    logger.info("Logged in as %s", client.user.name)
+
+
+client.run(os.getenv("DISCORD_API_TOKEN"), log_handler=None)
