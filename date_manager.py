@@ -1,7 +1,6 @@
 import asyncio
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from autogen_agentchat.base import TaskResult
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.conditions import MaxMessageTermination
@@ -9,7 +8,7 @@ from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from date_simulator import DateSimulator
-from model import Agent, AgentRole, StoreableBaseModel
+from src.model import Agent, AgentRole, StoreableBaseModel
 import os
 import pathlib
 import dotenv
@@ -36,16 +35,36 @@ class DateManager:
         self.organizer_template = Agent.load(pathlib.Path("agents/date_organizer.json"))
         self.summarizer_template = Agent.load(pathlib.Path("agents/date_summarizer.json"))
         
+        # Load available participants
+        self.available_participants = self._load_available_participants()
+        
         # Create the date manager agent
         self.manager_agent = AssistantAgent(
             name=self.manager_template.name,
             system_message=self.manager_template.system_prompt,
             model_client=self.model_client,
-            tools=[self.create_user_profile, self.run_simulation]
+            tools=[self.create_user_profile, self.list_available_participants, self.run_simulation]
         )
         
         self.user_profile: Optional[UserProfile] = None
         self.simulator: Optional[DateSimulator] = None
+        
+    def _load_available_participants(self) -> Dict[str, Agent]:
+        """Load all available participant agents from the agents folder."""
+        participants = {}
+        agents_path = pathlib.Path("agents")
+        for file in agents_path.glob("*.json"):
+            agent = Agent.load(file)
+            if agent.role == AgentRole.PARTICIPANT:
+                participants[agent.name] = agent
+        return participants
+        
+    async def list_available_participants(self) -> str:
+        """List all available participants with their brief descriptions."""
+        if not self.available_participants:
+            return "No participants available for dating."
+                
+        return "Available participants for dating:\n" + ",".join(self.available_participants.keys())
         
     def generate_system_prompt(self, profile: UserProfile) -> str:
         """Generate a system prompt based on the user's profile."""
@@ -73,23 +92,15 @@ class DateManager:
         Keep your responses natural while staying true to your character."""
         
         return prompt
-
-    def save_conversation(self, result: TaskResult, summary: str, match_name: str):
-        # Get next conversation number
-        i = 1
-        base_path = pathlib.Path("./conversations")
-        while any(f.name.startswith(f"{i}_") for f in base_path.glob("*.md")):
-            i += 1
-            
-        # save chat and summary as markdown
-        with open(base_path / f"{i}_{self.user_profile.name}_{match_name}.md", "w") as f:
-            f.write(f"# Conversation between {self.user_profile.name} and {match_name}\n")
-            f.write(self.simulator._format_conversation_history(result.messages))
-            f.write("\n# Summary\n")
-            f.write(summary)
         
-    async def run_date_simulation(self, user_prompt: str, match_name: str, match_prompt: str) -> str:
+    async def run_date_simulation(self, user_prompt: str, match_name: str) -> str:
         """Run a date simulation with the user's character and their match."""
+        if match_name not in self.available_participants:
+            return f"Error: {match_name} is not available for dating."
+            
+        match_agent = self.available_participants[match_name]
+        match_prompt = match_agent.get_full_system_prompt(num_examples=4)
+        
         self.simulator = DateSimulator(max_messages=10)
         self.simulator.initialize_model_client()
         
@@ -106,21 +117,21 @@ class DateManager:
         # Run the simulation
         result = await self.simulator.simulate_date()
         summary = await self.simulator.summarize_date(result)
-        self.save_conversation(result, summary, match_name)
+        self.simulator.save_conversation(result, summary)
         return summary
         
-    async def create_user_profile(self, profile_data: Dict[str, Any]):
+    async def create_user_profile(self, name: str, interests: List[str], personality_traits: List[str], conversation_style: List[str], dislikes: List[str]):
         """Create a user profile from the collected data as a python dict and without any markdown formatting."""
-        self.user_profile = UserProfile(**profile_data)
+        self.user_profile = UserProfile(name=name, interests=interests, personality_traits=personality_traits, conversation_style=conversation_style, dislikes=dislikes)
         return f"Created profile for {self.user_profile.name}"
         
-    async def run_simulation(self, match_name: str, match_prompt: str) -> str:
+    async def run_simulation(self, match_name: str) -> str:
         """Run a date simulation with the specified match."""
         if not self.user_profile:
             return "Error: User profile not created yet. Please provide user information first."
             
         user_prompt = self.generate_system_prompt(self.user_profile)
-        summary = await self.run_date_simulation(user_prompt, match_name, match_prompt)
+        summary = await self.run_date_simulation(user_prompt, match_name)
         return summary
         
     async def get_manager_response(self, user_input: str) -> str:
@@ -153,9 +164,8 @@ class DateManager:
                 break
                 
             # Get manager's response
-            print("\nDate Manager: ", end='')
             manager_response = await self.get_manager_response(user_input)
-            print(manager_response)
+            print(f"\nDate Manager: {manager_response}")
 
 async def main():
     manager = DateManager()
