@@ -1,4 +1,5 @@
 {
+    "id": "bc23201b-e57b-418f-a2ae-504844ec00d1",
     "name": "DateOrganizer",
     "model_provider": {
         "provider": "openai",

@@ -1,4 +1,5 @@
 {
+    "id": "3c321ae3-08c6-4f36-ab7d-cc0f0988e7f1",
     "name": "DateManager",
     "model_provider": {
         "provider": "openai",

@@ -1,4 +1,5 @@
 {
+    "id": "22ad62de-ab36-4109-8381-6fb2e614e1db",
     "name": "DateSummarizer",
     "model_provider": {
         "provider": "openai",

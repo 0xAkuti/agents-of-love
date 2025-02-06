@@ -1,4 +1,5 @@
 {
+    "id": "60ff6e51-7800-4160-b713-6a960fe21075",
     "name": "Trump",
     "model_provider": {
         "provider": "openai",
