@@ -71,7 +71,7 @@ class Agent(StoreableBaseModel):
             
         return "\n\n".join(formatted_examples)
     
-    def get_full_system_prompt(self, seed: Optional[int] = None, num_examples: int = 3) -> str:
+    def get_full_system_prompt(self, seed: Optional[int] = None, num_examples: int = 10) -> str:
         """Generate a full system prompt using the template and character information."""
         if seed is not None:
             random.seed(seed)
