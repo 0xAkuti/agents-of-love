@@ -33,6 +33,7 @@ class Character(StoreableBaseModel):
     topics: list[str]
     style: list[str]
     adjectives: list[str]
+    quotes: Optional[list[str]] = None
     
 class AgentRole(str, enum.Enum):
     MANAGER = "manager"
@@ -101,7 +102,8 @@ class Agent(StoreableBaseModel):
                 "style_section": self._format_list_items(self.character.style, num_examples),
                 "adjectives_section": self._format_list_items(self.character.adjectives, num_examples),
                 "topics_section": self._format_list_items(self.character.topics, num_examples),
-                "conversation_examples": self._format_conversation_examples(self.character.conversation_examples, num_examples)
+                "conversation_examples": self._format_conversation_examples(self.character.conversation_examples, num_examples),
+                "quotes_section": self._format_list_items(self.character.quotes, num_examples) if self.character.quotes else ""
             })
             
         # Format the template
