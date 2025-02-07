@@ -31,8 +31,8 @@ class DateManager:
         )
         
         # Load agent templates
-        self.manager_template = Agent.load(pathlib.Path("agents/date_manager.json"))
-        self.organizer_template = Agent.load(pathlib.Path("agents/date_organizer.json"))
+        self.manager_template = pathlib.Path("agents/date_manager.json").read_text() # Agent.load(pathlib.Path("agents/date_manager.json"))
+        self.organizer_template = pathlib.Path("agents/date_organizer.json").read_text() #Agent.load(pathlib.Path("agents/date_organizer.json"))
         self.summarizer_template = Agent.load(pathlib.Path("agents/date_summarizer.json"))
         
         # Load available participants
@@ -40,10 +40,10 @@ class DateManager:
         
         # Create the date manager agent
         self.manager_agent = AssistantAgent(
-            name=self.manager_template.name,
-            system_message=self.manager_template.system_prompt,
+            name='DateManager',
+            system_message=self.manager_template,
             model_client=self.model_client,
-            tools=[self.create_user_profile, self.list_available_participants, self.run_simulation]
+            tools=[self.create_user_profile, self.list_available_participants, self.run_simulation],
         )
         
         self.user_profile: Optional[UserProfile] = None
@@ -105,7 +105,7 @@ class DateManager:
         self.simulator.initialize_model_client()
         
         # Create date organizer from template
-        self.simulator.set_date_organizer(self.organizer_template.system_prompt)
+        self.simulator.set_date_organizer(self.organizer_template)
         
         # Add the participants
         self.simulator.add_participant(self.user_profile.name, user_prompt)
