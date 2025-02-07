@@ -99,24 +99,7 @@ class DateSimulator:
         
     def _create_selector_prompt(self) -> str:
         """Create the selector prompt for the group chat."""
-        return """Observe the natural flow of conversation between two people on a date, each with distinct personalities and perspectives.
-        Select the next speaker based on realistic conversation dynamics, considering:
-        - Natural response patterns
-        - Individual communication styles
-        - Authentic reactions to previous statements
-        
-        The DateOrganizer should be selected to:
-        - Create environmental context that might influence the interaction
-        - Provide natural breaks in conversation
-        - Add atmospheric elements that could affect the mood
-        
-        The following roles are available:
-        {roles}.
-        Read the following conversation. Then select the next role from {participants} to play. Only return the role.
-
-        {history}
-
-        Read the above conversation. Then select the next role from {participants} to play. Only return the role."""
+        return pathlib.Path("prompts/speaker_selector.txt").read_text()
         
     def _format_conversation_history(self, messages: List[TextMessage]) -> str:
         """Format the conversation history for summary."""
