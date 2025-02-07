@@ -47,7 +47,7 @@ class DateSimulator:
         self.participants[name] = agent
         return agent
         
-    def set_date_organizer(self, system_message: Optional[str]):
+    def set_date_organizer(self, system_message: Optional[str] = None):
         """Configure the date organizer with optional custom system message."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
@@ -117,7 +117,7 @@ class DateSimulator:
         
         summarizer = AssistantAgent(
             name="DateSummarizer",
-            system_message=pathlib.Path("prompts/date_summarizer.txt").read_text().format(conversation=conversation_history),
+            system_message=pathlib.Path("prompts/date_summarizer.txt").read_text(),
             model_client=self.model_client,
         )   
         conversation_history = self._format_conversation_history(conversation_result.messages)
