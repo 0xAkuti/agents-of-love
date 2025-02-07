@@ -87,7 +87,7 @@ class DateManager:
         {', '.join(profile.dislikes)}
         
         Important Guidelines:
-        1. Always use your distinct communication style (e.g. very short responses, or uses FULL CAPS for key phrases and emphasis, depending on your character)
+        1. Always use your distinct communication style
         2. Stay true to your identity and personality and be consistent throughout the interaction
         3. Express yourself openly about topics you're passionate about or dislike, don't feel shy about saying what you really think.
         4. Draw from your personal experiences, knowledge and expertise when relevant, but don't make it a monologue.
@@ -99,6 +99,8 @@ class DateManager:
         
     async def run_date_simulation(self, user_prompt: str, match_name: str, scene_instruction: Optional[str] = None) -> str:
         """Run a date simulation with the user's character and their match.
+        
+        Keep in mind that you need to save the user profile first.
         """
         if match_name not in self.available_participants:
             return f"Error: {match_name} is not available for dating."
