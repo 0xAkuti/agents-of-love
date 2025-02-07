@@ -44,6 +44,7 @@ class DateManager:
             system_message=self.manager_template,
             model_client=self.model_client,
             tools=[self.create_user_profile, self.list_available_participants, self.run_simulation],
+            reflect_on_tool_use=True
         )
         
         self.user_profile: Optional[UserProfile] = None
