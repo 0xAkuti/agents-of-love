@@ -87,7 +87,7 @@ class DateSimulator:
         """Format the conversation history for summary."""
         return "\n\n".join([f"*{msg.source}*: {msg.content}" for msg in messages if isinstance(msg, TextMessage)])
         
-    async def simulate_date(self) -> TaskResult:
+    async def simulate_date(self, scene_instruction: Optional[str] = None) -> TaskResult:
         """Run the date simulation."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
@@ -107,7 +107,7 @@ class DateSimulator:
             termination_condition=MaxMessageTermination(self.max_messages)
         )
         self.is_running = True
-        stream = date_conversation.run_stream(task=self.scene_instruction)
+        stream = date_conversation.run_stream(task=scene_instruction or self.scene_instruction)
         result = await Console(stream)
         self.is_running = False
         return result

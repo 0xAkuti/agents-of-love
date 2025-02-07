@@ -126,13 +126,15 @@ class DateManager:
         self.user_profile = UserProfile(name=name, interests=interests, personality_traits=personality_traits, conversation_style=conversation_style, dislikes=dislikes)
         return f"Created profile for {self.user_profile.name}"
         
-    async def run_simulation(self, match_name: str) -> str:
-        """Run a date simulation with the specified match."""
+    async def run_simulation(self, match_name: str, scene_instruction: Optional[str] = None) -> str:
+        """Run a date simulation with the specified match.
+        If the user has not specified a scene instruction, the simulator will use the default one.
+        Otherwise please provide a scene instruction to the date organizer."""
         if not self.user_profile:
             return "Error: User profile not created yet. Please provide user information first."
             
         user_prompt = self.generate_system_prompt(self.user_profile)
-        summary = await self.run_date_simulation(user_prompt, match_name)
+        summary = await self.run_date_simulation(user_prompt, match_name, scene_instruction)
         return summary
         
     async def get_manager_response(self, user_input: str) -> str:
