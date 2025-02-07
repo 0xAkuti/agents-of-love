@@ -10,37 +10,12 @@ from typing import Optional, List, Dict
 import os
 import dotenv
 import pathlib
-from model import Agent
+from src.model import Agent
 import argparse
 import asyncio
 dotenv.load_dotenv()
 
 class DateSimulator:
-    DEFAULT_DATE_ORGANIZER_PROMPT = """You are the date organizer for the date between {participants}, 
-    responsible for describing environmental events and setting the scene.
-    Your role is to:
-    1. Describe random environmental events happening around the participants, such as:
-       - Weather changes (light rain starting, sun peeking through clouds)
-       - Animals appearing (birds landing nearby, cats walking past)
-       - Background activities (street musician starting to play, waiter bringing water)
-       - Ambient changes (sunset colors appearing, candles being lit)
-    2. Keep descriptions brief and natural, letting them serve as conversation starters
-    3. Space out your environmental descriptions to not interrupt the flow
-    
-    IMPORTANT: Never speak as the date participants.
-    Only describe external events happening around them that they might notice and react to."""
-
-    DEFAULT_SUMMARIZER_PROMPT = """You are a perceptive date analyst who notices both obvious and subtle interaction dynamics.
-    Your role is to provide an honest, nuanced analysis of interpersonal chemistry and communication patterns.
-    
-    Focus on:
-    - Observe how different conversation styles and worldviews interact
-    - Notice moments of both connection and disconnect
-    - Analyze how each participant's unique perspective affects the interaction
-    - Identify patterns in how they respond to each other's interests
-    - Pay attention to shifts in engagement levels throughout the conversation
-    
-    Provide balanced, insightful observations about the interaction dynamics while maintaining professional objectivity."""
 
     def __init__(self, model_name: str = "gpt-4o-mini", max_messages: int = 10):
         self.model_name = model_name
@@ -71,14 +46,17 @@ class DateSimulator:
         self.participants[name] = agent
         return agent
         
-    def set_date_organizer(self, system_message: Optional[str] = None):
+    def set_date_organizer(self, system_message: Optional[str]):
         """Configure the date organizer with optional custom system message."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
+        
+        if system_message is None:
+            system_message = pathlib.Path("prompts/date_organizer.txt").read_text()
             
         self.date_organizer = AssistantAgent(
             name="DateOrganizer",
-            system_message=system_message or self.DEFAULT_DATE_ORGANIZER_PROMPT.format(participants=self.participants.keys()),
+            system_message=system_message.format(participants=self.participants.keys()),
             model_client=self.model_client,
         )
         
@@ -86,10 +64,13 @@ class DateSimulator:
         """Configure the summary agent with optional custom system message."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
+        
+        if system_message is None:
+            system_message = pathlib.Path("prompts/date_summarizer.txt").read_text()
             
         self.summary_agent = AssistantAgent(
             name="DateSummarizer",
-            system_message=system_message or self.DEFAULT_SUMMARIZER_PROMPT,
+            system_message=system_message,
             model_client=self.model_client,
         )
         
