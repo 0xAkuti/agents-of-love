@@ -107,6 +107,7 @@ class DateManager:
         match_prompt = match_agent.get_full_system_prompt(num_examples=4)
         
         self.simulator = DateSimulator(max_messages=10)
+        self.simulator.model_name = self.model_name
         self.simulator.initialize_model_client()
         
         # Create date organizer from template
