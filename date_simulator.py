@@ -56,7 +56,7 @@ class DateSimulator:
             
         self.date_organizer = AssistantAgent(
             name="DateOrganizer",
-            system_message=system_message.format(participants=self.participants.keys()),
+            system_message=system_message.format(participants=', '.join(self.participants.keys())),
             model_client=self.model_client,
         )
         
@@ -111,23 +111,16 @@ class DateSimulator:
         
     async def summarize_date(self, conversation_result: TaskResult):
         """Generate a summary of the date."""
-        if not self.summary_agent:
-            self.set_summarizer()
-            
-        conversation_history = self._format_conversation_history(conversation_result.messages)
         
-        summary_response = await self.summary_agent.on_messages(
+        summarizer = AssistantAgent(
+            name="DateSummarizer",
+            system_message=pathlib.Path("prompts/date_summarizer.txt").read_text().format(conversation=conversation_history),
+            model_client=self.model_client,
+        )   
+        conversation_history = self._format_conversation_history(conversation_result.messages)
+        summary_response = await summarizer.on_messages(
             [TextMessage(
-                content=f"""Please analyze this date conversation and provide a detailed summary:
-
-Conversation:
-{conversation_history}
-
-Focus on:
-1. The overall chemistry between the participants
-2. Key shared interests or moments of connection
-3. Notable reactions or memorable exchanges
-4. Overall assessment of the date's success""",
+                content=f"Please summarize the date between {', '.join(self.participants.keys())}:\n\n{conversation_history}",
                 source="user"
             )],
             cancellation_token=CancellationToken(),

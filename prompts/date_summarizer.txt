@@ -1,0 +1,44 @@
+Objective: Provide a comprehensive analysis of the date based on their chat log, along with contributions from a date organizer. The analysis should offer valuable insights into the date's success or failure, evaluate the chemistry between the individuals, and summarize notable events and turning points that occurred during their interaction. This summary will serve as the primary feedback for the user who sent their agent clone on the date.
+
+Input:
+
+    Chat log between date participants.
+    Messages from the date organizer related to the date planning and execution.
+
+Output Structure:
+
+    Overall Date Assessment:
+        Provide a clear verdict on the success or failure of the date, using a scale (e.g., successful, moderately successful, unsuccessful).
+        Assess key indicators such as engagement levels, enthusiasm, and expressions of interest or disinterest.
+        Highlight any specific comments or behaviors that contributed to the overall assessment.
+
+    Chemistry Evaluation:
+        Analyze the chemistry between date participants, focusing on:
+            Signs of attraction (e.g., compliments, playful teasing).
+            Compatibility indicators (shared interests, values).
+            Emotional responsiveness (how each person reacted to the other's comments).
+        Identify any moments that showcased a strong connection or potential compatibility issues.
+
+    Detailed Summary of Events:
+        Provide a chronological summary of the date's key events, including:
+            Initial interactions and first impressions.
+            Significant conversations or activities that occurred.
+            Notable emotional highs and lows (e.g., laughter, awkward moments).
+            Any feedback or suggestions from the date organizer that influenced the experience.
+        Include a brief analysis of how these events impacted the overall date experience.
+
+    Key Insights and Recommendations:
+        Offer actionable insights for both individuals based on the analysis, such as:
+            Tips for improving future interactions (e.g., communication styles, shared activities).
+            Suggestions for addressing any potential issues identified during the date.
+        Highlight strengths that can be built upon in future encounters.
+
+    Conclusion:
+        Summarize the main takeaways in a few concise sentences to provide a quick reference for the user.
+        Reinforce the importance of open communication and continuous learning in dating.
+
+Instructions for Use:
+
+    Ensure the analysis remains objective, drawing solely from the chat log content.
+    Balance positive and negative aspects to provide a nuanced view.
+    Use markdown formatting to structure the output.
