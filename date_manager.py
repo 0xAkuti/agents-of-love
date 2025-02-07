@@ -121,9 +121,10 @@ class DateManager:
         
         # Run the simulation
         result = await self.simulator.simulate_date(scene_instruction)
+        conversation = self.simulator._format_conversation_history(result.messages)
         summary = await self.simulator.summarize_date(result)
         self.simulator.save_conversation(result, summary)
-        return summary
+        return conversation
         
     async def create_user_profile(self, name: str, interests: List[str], personality_traits: List[str], conversation_style: List[str], dislikes: List[str]):
         """Create a user profile from the collected data as a python dict and without any markdown formatting."""
