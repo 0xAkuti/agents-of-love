@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Optional, Dict, Any
+from typing import Callable, List, Optional, Dict, Any
 from pydantic import BaseModel
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import RoundRobinGroupChat
@@ -49,6 +49,7 @@ class DateManager:
         
         self.user_profile: Optional[UserProfile] = None
         self.simulator: Optional[DateSimulator] = None
+        self.date_started_callback: Optional[Callable[[], None]] = None
         
     def _load_available_participants(self) -> Dict[str, Agent]:
         """Load all available participant agents from the agents folder."""
@@ -94,8 +95,9 @@ class DateManager:
         
         return prompt
         
-    async def run_date_simulation(self, user_prompt: str, match_name: str) -> str:
-        """Run a date simulation with the user's character and their match."""
+    async def run_date_simulation(self, user_prompt: str, match_name: str, scene_instruction: Optional[str] = None) -> str:
+        """Run a date simulation with the user's character and their match.
+        """
         if match_name not in self.available_participants:
             return f"Error: {match_name} is not available for dating."
             
@@ -113,10 +115,10 @@ class DateManager:
         self.simulator.add_participant(match_name, match_prompt)
         
         # Set the summarizer from template
-        self.simulator.set_summarizer(self.summarizer_template.system_prompt)
+        self.simulator.set_summarizer(self.summarizer_template)
         
         # Run the simulation
-        result = await self.simulator.simulate_date()
+        result = await self.simulator.simulate_date(scene_instruction)
         summary = await self.simulator.summarize_date(result)
         self.simulator.save_conversation(result, summary)
         return summary
