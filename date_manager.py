@@ -31,9 +31,9 @@ class DateManager:
         )
         
         # Load agent templates
-        self.manager_template = pathlib.Path("agents/date_manager.json").read_text() # Agent.load(pathlib.Path("agents/date_manager.json"))
-        self.organizer_template = pathlib.Path("agents/date_organizer.json").read_text() #Agent.load(pathlib.Path("agents/date_organizer.json"))
-        self.summarizer_template = Agent.load(pathlib.Path("agents/date_summarizer.json"))
+        self.manager_template = pathlib.Path("prompts/date_manager.txt").read_text() # Agent.load(pathlib.Path("agents/date_manager.json"))
+        self.organizer_template = pathlib.Path("prompts/date_organizer.txt").read_text() #Agent.load(pathlib.Path("agents/date_organizer.json"))
+        self.summarizer_template = pathlib.Path("prompts/date_summarizer.txt").read_text() #Agent.load(pathlib.Path("agents/date_summarizer.json"))
         
         # Load available participants
         self.available_participants = self._load_available_participants()
