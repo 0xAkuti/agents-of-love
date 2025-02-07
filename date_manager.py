@@ -65,8 +65,10 @@ class DateManager:
         """List all available participants with their brief descriptions."""
         if not self.available_participants:
             return "No participants available for dating."
+        
+        available_participants = [f"{p.name}: {p.system_prompt}" for p in self.available_participants.values()]
                 
-        return "Available participants for dating:\n" + ",".join(self.available_participants.keys())
+        return "Available participants for dating:\n" + "\n".join(available_participants)
         
     def generate_system_prompt(self, profile: UserProfile) -> str:
         """Generate a system prompt based on the user's profile."""
