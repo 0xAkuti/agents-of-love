@@ -25,6 +25,7 @@ class DateSimulator:
         self.summary_agent: Optional[AssistantAgent] = None
         self.model_client: Optional[OpenAIChatCompletionClient] = None
         self.scene_instruction: str = "Date Organizer, please set the scene and start the date."
+        self.is_running: bool = False
         
     def initialize_model_client(self):
         """Initialize the OpenAI model client."""
@@ -105,9 +106,11 @@ class DateSimulator:
             selector_prompt=self._create_selector_prompt(),
             termination_condition=MaxMessageTermination(self.max_messages)
         )
-        
+        self.is_running = True
         stream = date_conversation.run_stream(task=self.scene_instruction)
-        return await Console(stream)
+        result = await Console(stream)
+        self.is_running = False
+        return result
         
     async def summarize_date(self, conversation_result: TaskResult):
         """Generate a summary of the date."""
