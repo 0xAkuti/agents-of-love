@@ -1,17 +1,20 @@
 import os
-import asyncio
-from typing import Optional, Literal, Any
+from typing import Literal
 from openai import AsyncOpenAI
 from autogen_core.tools import BaseTool
 from autogen_core import CancellationToken
 from pydantic import BaseModel, Field
 
+AvailableImageSizes = Literal['256x256', '512x512', '1024x1024', '1792x1024', '1024x1792']
+AvailableImageQualities = Literal['standard', 'hd']
+AvailableImageStyles = Literal['natural', 'vivid']
+
 class ImageGenerationRequest(BaseModel):
     """Parameters for image generation."""
     prompt: str = Field(..., description="A text description of the image you want to generate")
-    size: str = Field(default="1024x1024", description="The size of the generated image. Options: 1024x1024, 1024x1792, 1792x1024")
-    quality: str = Field(default="standard", description="The quality of the image. Options: standard, hd")
-    style: str = Field(default="vivid", description="The style of the image. Options: vivid, natural")
+    size: AvailableImageSizes = Field(default="512x512", description="The size of the generated image.")
+    quality: AvailableImageQualities = Field(default="standard", description="The quality of the image. Options: standard, hd")
+    style: AvailableImageStyles = Field(default="natural", description="The style of the image. Options: natural, vivid")
     n: int = Field(default=1, description="The number of images to generate (1-10)")
 
 class ImageGenerationResponse(BaseModel):
