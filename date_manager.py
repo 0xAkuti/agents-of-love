@@ -200,11 +200,11 @@ class DateManager:
                 
         return "Available participants for dating:\n" + "\n".join(available_participants)
         
-    async def run_date_simulation(self, user_prompt: str, match_name: str, scene_instruction: Optional[str] = None) -> str:
-        """Run a date simulation with the user's character and their match.
-        
-        Keep in mind that you need to save the user profile first.
-        """
+    async def run_date_simulation(self,  match_name: str, scene_instruction: Optional[str] = None) -> str:
+        """Run a date simulation with the specified match.
+        If the user has not specified a scene instruction, the simulator will use the default one.
+        Otherwise please provide a scene instruction to the date organizer."""
+    
         if match_name not in self.available_participants:
             return f"Error: {match_name} is not available for dating."
         if self.user_agent is None:
@@ -224,7 +224,7 @@ class DateManager:
         #self.simulator.add_participant(self.user_profile.name, user_prompt)
         #self.simulator.add_participant(match_name, match_prompt)
         
-        self.simulator.participants.append(self.user_agent)
+        self.simulator.participants[self.user_agent.name] = self.user_agent
         self.simulator.add_participant_from_agent(match_agent)
         
         # Set the summarizer from template
@@ -256,17 +256,6 @@ class DateManager:
         user_agent.save(path)
 
         return f"Updated profile for {user_agent.user_profile.name}"
-        
-    async def run_simulation(self, match_name: str, scene_instruction: Optional[str] = None) -> str:
-        """Run a date simulation with the specified match.
-        If the user has not specified a scene instruction, the simulator will use the default one.
-        Otherwise please provide a scene instruction to the date organizer."""
-        if not self.user_profile:
-            return "Error: User profile not created yet. Please provide user information first."
-            
-        user_prompt = self.generate_system_prompt(self.user_profile)
-        summary = await self.run_date_simulation(user_prompt, match_name, scene_instruction)
-        return summary
         
     async def get_manager_response(self, user_input: str) -> str:
         """Get a response from the manager agent."""
