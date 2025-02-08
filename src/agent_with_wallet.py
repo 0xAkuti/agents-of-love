@@ -26,8 +26,10 @@ class AgentWithWallet(AssistantAgent):
             combined = f"{name}{system_message}".encode()
             hash_value = hashlib.md5(combined).hexdigest()
             self.agent_id = uuid.UUID(hash_value)
-        else:
+        elif isinstance(agent_id, str):
             self.agent_id = uuid.UUID(agent_id)
+        else:
+            self.agent_id = agent_id#
         self.agent_role = agent_role
         self.network_id = os.environ.get("NETWORK_ID", "base-sepolia")
         wallet_data = self._wallet_store.load_wallet(str(self.agent_id))
