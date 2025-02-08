@@ -55,7 +55,7 @@ class DateManager:
         self.manager_agent = AgentWithWallet.from_json(
             path=pathlib.Path("agents/date_manager.json"),
             system_message=self.manager_template,
-            tools=[self.create_user_profile, self.list_available_participants, self.run_simulation, self.get_user_agent_wallet],
+            tools=[self.create_user_profile, self.list_available_participants, self.run_date_simulation, self.get_user_agent_wallet, self.get_user_agent_balance],
             reflect_on_tool_use=True,
             memory=[self.memory]
         )
@@ -190,6 +190,23 @@ class DateManager:
         if self.user_agent is None:
             return "User agent not found"
         return self.user_agent.cdp_agentkit.wallet.default_address.address_id
+    
+    async def get_user_agent_balance(self, asset_id: str) -> str:
+        """Get balance for all addresses in the wallet of the users agent for a given asset.
+
+        Args:
+            asset_id (str): The asset ID to get the balance for (e.g., "eth", "usdc", or a valid contract address like "0x036CbD53842c5426634e7929541eC2318f3dCF7e")
+
+        Returns:
+            str: A message containing the balance information of all addresses in the wallet.
+
+        """
+        if self.user_agent is None:
+            return "User agent not found"
+        for tool in self.user_agent.cdp_toolkit.get_tools():
+            if tool.name == "get_balance":
+                return await tool.arun({"asset_id": asset_id})
+        return "No balance tool found"
         
     async def list_available_participants(self) -> str:
         """List all available participants with their brief descriptions."""
