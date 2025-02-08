@@ -76,11 +76,16 @@ class AgentWithWallet(AssistantAgent):
         else:
             raise ValueError(f"Unsupported model provider: {agent.model_provider.provider}")
         
+        name = kwargs.pop("name", agent.name)
+        system_message = kwargs.pop("system_message", agent.get_full_system_prompt())
+        model_client = kwargs.pop("model_client", model_client)
+        agent_id = kwargs.pop("agent_id", agent.id)
+        
         return cls(
-            name=agent.name,
-            system_message=agent.get_full_system_prompt(),
+            name=name,
+            system_message=system_message,
             model_client=model_client,
-            agent_id=agent.id,
+            agent_id=agent_id,
             **kwargs
         )
     
