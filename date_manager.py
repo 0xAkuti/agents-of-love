@@ -14,6 +14,8 @@ import os
 import pathlib
 import dotenv
 import discord
+import json
+from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
 
 from src.user_agent import UserAgentWithWallet
 dotenv.load_dotenv()
@@ -42,17 +44,31 @@ class DateManager:
             self.user_agent = UserAgentWithWallet.load_or_create(user)
         else:
             raise ValueError("User is required for now")
+            
+        # Create memory for storing user profile
+        self.memory = ListMemory()
         
         self.manager_agent = AgentWithWallet.from_json(
             path=pathlib.Path("agents/date_manager.json"),
             system_message=self.manager_template,
             tools=[self.create_user_profile, self.list_available_participants, self.run_simulation, self.get_user_agent_wallet],
-            reflect_on_tool_use=True
+            reflect_on_tool_use=True,
+            memory=[self.memory]
         )
 
         self.simulator: Optional[DateSimulator] = None
         self.date_started_callback: Optional[Callable[[], None]] = None
-           
+    
+    async def init_memory(self):
+        """Initialize the date manager."""
+        if self.user_agent.agent_data.user_profile:
+            await self.memory.add(
+                MemoryContent(
+                    content=json.dumps(self.user_agent.agent_data.user_profile.model_dump(), indent=2),
+                    mime_type=MemoryMimeType.JSON
+                )
+            )        
+    
     def _load_available_participants(self) -> Dict[str, Agent]:
         """Load all available participant agents from the agents folder."""
         participants = {}
@@ -181,6 +197,7 @@ class DateManager:
 
 async def main():
     manager = DateManager()
+    await manager.init_memory()
     await manager.start_conversation()
 
 if __name__ == "__main__":
