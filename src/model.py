@@ -45,6 +45,16 @@ class AgentRole(str, enum.Enum):
     MATCHMAKER = "matchmaker"
     SPEAKER_SELECTOR = "speaker_selector"
     ASSISTANT = "assistant"
+    USER = "user"
+    
+class UserProfile(StoreableBaseModel):
+    name: str
+    interests: List[str]
+    personality_traits: List[str]
+    conversation_style: List[str]
+    dislikes: List[str]
+    areas_of_expertise_and_knowledge: List[str]
+    passionate_topics: List[str]
     
 class Agent(StoreableBaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
@@ -53,7 +63,8 @@ class Agent(StoreableBaseModel):
     role: AgentRole
     system_prompt: Optional[str] = None
     character: Optional[Character] = None
-    
+    user_profile: Optional[UserProfile] = None
+
     def _format_list_items(self, items: List[str], num_items: int = 3) -> str:
         """Format a list of items as a bullet-point string, selecting random items."""
         selected_items = random.sample(items, min(num_items, len(items)))
