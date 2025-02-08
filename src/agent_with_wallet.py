@@ -1,3 +1,4 @@
+import logging
 import os
 import pathlib
 import uuid
@@ -13,6 +14,7 @@ from autogen_core.models import ChatCompletionClient
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from cdp.wallet import Wallet
 import hashlib
+from autogen_core.memory import Memory
 
 	
 dotenv.load_dotenv(override=True)
@@ -39,7 +41,7 @@ class AgentWithWallet(AssistantAgent):
         )
         self.cdp_toolkit = CdpToolkit.from_cdp_agentkit_wrapper(self.cdp_agentkit)
         tools = [CDPLangChainToolAdapter(tool) for tool in self.cdp_toolkit.get_tools()]
-        tools.extend(kwargs.get("tools", []))
+        tools.extend(kwargs.pop("tools", []))
         super().__init__(
             name=name,
             system_message=system_message,
@@ -50,6 +52,7 @@ class AgentWithWallet(AssistantAgent):
         self._save_agent(name, system_message)
         if wallet_data is None:
             self._wallet_store.save_wallet(str(self.agent_id), self.cdp_agentkit.wallet)
+        logging.info(f"Agent {name!r} with ID {self.agent_id} created, wallet: {self.cdp_agentkit.wallet.default_address.address_id}")
         
     def _save_agent(self, name: str, system_message: str):
         for agent_file in pathlib.Path(".").glob("agents/**/*.json"):
