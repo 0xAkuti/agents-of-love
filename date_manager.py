@@ -31,6 +31,10 @@ class DateManager:
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
         
+        # Create states directory if it doesn't exist
+        self.states_dir = pathlib.Path("states")
+        self.states_dir.mkdir(exist_ok=True)
+        
         # Load agent templates
         self.manager_template = pathlib.Path("prompts/date_manager.txt").read_text() # Agent.load(pathlib.Path("agents/date_manager.json"))
         self.organizer_template = pathlib.Path("prompts/date_organizer.txt").read_text() #Agent.load(pathlib.Path("agents/date_organizer.json"))
@@ -59,15 +63,117 @@ class DateManager:
         self.simulator: Optional[DateSimulator] = None
         self.date_started_callback: Optional[Callable[[], None]] = None
     
+    def _get_state_path(self) -> pathlib.Path:
+        """Get the path to the state file for the current user."""
+        if not self.user:
+            raise ValueError("No user set")
+        return self.states_dir / f"{self.user.id}_state.json"
+
+    async def save_state(self):
+        """Save the current state of the date manager."""
+        if not self.user:
+            return
+            
+        # Get state from manager agent
+        manager_state = await self.manager_agent.save_state()
+        
+        # Get memory contents - ListMemory has a contents property, not get_contents()
+        memory_contents = []
+        for content in self.memory.content:
+            memory_contents.append({
+                "content": content.content,
+                "mime_type": content.mime_type.value
+            })
+        
+        # Combine states
+        state = {
+            "manager_state": manager_state,
+            "memory_contents": memory_contents
+        }
+        
+        # Save to file
+        state_path = self._get_state_path()
+        with open(state_path, "w") as f:
+            json.dump(state, f)
+            
+    async def _load_state(self) -> bool:
+        """Load the previous state if it exists and returns whether it was loaded successfully."""
+        state_path = self._get_state_path()
+        if not state_path.exists():
+            return False
+            
+        try:
+            # Read the file content first
+            with open(state_path, "r", encoding='utf-8') as f:
+                file_content = f.read()
+                
+            try:
+                state = json.loads(file_content)
+            except json.JSONDecodeError as e:
+                # If JSON is invalid, log the error and save the problematic file
+                error_path = state_path.with_suffix('.error')
+                with open(error_path, 'w', encoding='utf-8') as f:
+                    f.write(file_content)
+                print(f"Error parsing state file: {e}")
+                print(f"Saved problematic state to: {error_path}")
+                # Delete the corrupted state file
+                state_path.unlink()
+                return False
+                
+            # Load manager state
+            if "manager_state" in state:
+                try:
+                    await self.manager_agent.load_state(state["manager_state"])
+                except Exception as e:
+                    print(f"Error loading manager state: {e}")
+                
+            # Load memory contents    
+            if "memory_contents" in state:
+                for content in state["memory_contents"]:
+                    try:
+                        mime_type = content.get("mime_type")
+                        # Convert string mime type to enum if needed
+                        if isinstance(mime_type, str):
+                            mime_type = MemoryMimeType(mime_type)
+                        await self.memory.add(MemoryContent(
+                            content=content["content"],
+                            mime_type=mime_type
+                        ))
+                    except Exception as e:
+                        print(f"Error loading memory content: {e}")
+            return True
+                
+        except Exception as e:
+            print(f"Error loading state: {e}")
+            # Save the problematic state file for debugging
+            error_path = state_path.with_suffix('.error')
+            try:
+                state_path.rename(error_path)
+                print(f"Moved problematic state to: {error_path}")
+            except Exception as rename_error:
+                print(f"Could not save problematic state: {rename_error}")
+            return False
+    
     async def init_memory(self):
         """Initialize the date manager."""
+        if await self._load_state():
+            return
+            
         if self.user_agent.agent_data.user_profile:
-            await self.memory.add(
-                MemoryContent(
-                    content=json.dumps(self.user_agent.agent_data.user_profile.model_dump(), indent=2),
-                    mime_type=MemoryMimeType.JSON
+            # Create the profile JSON
+            profile_json = json.dumps(self.user_agent.agent_data.user_profile.model_dump(), indent=2)
+            
+            # Query for the exact profile content
+            existing_profiles = await self.memory.query(profile_json)
+            
+            # Only add if profile doesn't exist
+            if not existing_profiles.results:
+                await self.memory.add(
+                    MemoryContent(
+                        content=profile_json,
+                        mime_type=MemoryMimeType.JSON
+                    )
                 )
-            )        
     
     def _load_available_participants(self) -> Dict[str, Agent]:
         """Load all available participant agents from the agents folder."""

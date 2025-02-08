@@ -1,6 +1,8 @@
+import asyncio
 import logging
 import logging.handlers
 import os
+import signal
 from date_manager import DateManager
 from typing import Dict
 
@@ -36,9 +38,24 @@ client = discord.Client(intents=intents)
 # Store date managers for each user
 date_managers: Dict[int, DateManager] = {}
 
-def get_date_manager(user: discord.User) -> DateManager:
+async def save_all_states():
+    """Save states for all active date managers."""
+    logger.info("Saving states for all date managers...")
+    for manager in date_managers.values():
+        try:
+            await manager.save_state()
+        except Exception as e:
+            logger.error(f"Error saving state for user {manager.user.id}: {e}")
+    logger.info("All states saved.")
+
+async def get_date_manager(user: discord.User) -> DateManager:
+    """Get or create a date manager for a user."""
     if user.id not in date_managers:
-        date_managers[user.id] = DateManager(user=user)
+        # Create new date manager
+        date_manager = DateManager(user=user)
+        # Initialize memory and load previous state
+        await date_manager.init_memory()
+        date_managers[user.id] = date_manager
     return date_managers[user.id]
 
 @client.event
@@ -53,11 +70,12 @@ async def on_message(message: discord.Message):
     # Show typing indicator while processing
     async with message.channel.typing():
         # Get or create date manager for this user
-        date_manager = get_date_manager(message.author.id)
+        date_manager = await get_date_manager(message.author)
+        date_manager.date_started_callback = lambda: asyncio.create_task(message.channel.send(f"Great, I am organizing the date for you. I'll let you know how it went in a bit."))
         
         # Get response from date manager
         response = await date_manager.get_manager_response(f'{message.author.display_name}: {message.content}')
-        
+
         # Send response back to Discord
         await message.reply(response)
 
@@ -78,4 +96,53 @@ async def on_reaction_add(reaction, user):
 async def on_ready():
     logger.info("Logged in as %s", client.user.name)
 
-client.run(os.getenv("DISCORD_API_TOKEN"), log_handler=None)
+async def cleanup():
+    """Cleanup function to save states and close connections."""
+    logger.info("Starting cleanup...")
+    
+    # Save all states
+    await save_all_states()
+    
+    # Close the Discord connection
+    if not client.is_closed():
+        await client.close()
+    
+    # Stop the event loop
+    loop = asyncio.get_event_loop()
+    loop.stop()
+    
+    logger.info("Cleanup complete.")
+
+def handle_signals():
+    """Set up signal handlers."""
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGINT, lambda: loop.create_task(cleanup()))
+    loop.add_signal_handler(signal.SIGTERM, lambda: loop.create_task(cleanup()))
+    logger.info("Signal handlers registered")
+
+if __name__ == "__main__":
+    logging.info("Starting bot...")
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        handle_signals()
+        loop.run_until_complete(client.start(os.getenv("DISCORD_API_TOKEN")))
+        loop.run_forever()
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt...")
+        loop.run_until_complete(cleanup())
+    finally:
+        # Cancel all remaining tasks
+        pending = asyncio.all_tasks(loop=loop)
+        for task in pending:
+            task.cancel()
+        
+        # Run the event loop one last time to let tasks clean up
+        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+        
+        # Close the loop
+        loop.close()
+        logger.info("Bot shutdown complete.")
+        # Force exit to ensure all is stopped
+        os._exit(0)
