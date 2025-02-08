@@ -10,6 +10,7 @@ from typing import Optional, List, Dict
 import os
 import dotenv
 import pathlib
+from src.agent_with_wallet import AgentWithWallet
 from src.model import Agent
 import argparse
 import asyncio
@@ -34,19 +35,19 @@ class DateSimulator:
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
     
-    def add_participant_from_agent(self, agent: Agent) -> AssistantAgent:
+    def add_participant_from_agent(self, agent: Agent) -> AgentWithWallet:
         """Add a new participant to the date simulation."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
         
-        return self.add_participant(agent.name, agent.get_full_system_prompt(num_examples=8))
+        self.participants[agent.name] = AgentWithWallet.from_agent(agent, model_client=self.model_client)
     
-    def add_participant(self, name: str, system_message: str) -> AssistantAgent:
+    def add_participant(self, name: str, system_message: str) -> AgentWithWallet:
         """Add a new participant to the date simulation."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
             
-        agent = AssistantAgent(
+        agent = AgentWithWallet(
             name=name,
             system_message=system_message,
             model_client=self.model_client,
