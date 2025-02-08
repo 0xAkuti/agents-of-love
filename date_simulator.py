@@ -55,17 +55,17 @@ class DateSimulator:
         self.participants[name] = agent
         return agent
         
-    def set_date_organizer(self, system_message: Optional[str] = None):
+    def set_date_organizer(self, system_message: Optional[str] = None, wallet_address: Optional[str] = None):
         """Configure the date organizer with optional custom system message."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
-        
+        if wallet_address is None:
+            raise ValueError("Wallet address is required.")
         if system_message is None:
             system_message = pathlib.Path("prompts/date_organizer.txt").read_text()
-            
         self.date_organizer = AssistantAgent(
             name="DateOrganizer",
-            system_message=system_message.format(participants=', '.join(self.participants.keys())),
+            system_message=system_message.format(participants=', '.join(self.participants.keys()), wallet_address=wallet_address),
             model_client=self.model_client,
         )
         

@@ -235,7 +235,7 @@ class DateManager:
         self.simulator.initialize_model_client()
         
         # Create date organizer from template
-        self.simulator.set_date_organizer(self.organizer_template)
+        self.simulator.set_date_organizer(self.organizer_template, self.manager_agent.cdp_agentkit.wallet.default_address.address_id)
         
         # Add the participants
         #self.simulator.add_participant(self.user_profile.name, user_prompt)
