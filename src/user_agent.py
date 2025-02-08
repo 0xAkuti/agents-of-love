@@ -14,6 +14,8 @@ class UserAgentWithWallet(AgentWithWallet):
         hash_value = hashlib.md5(str(user_id).encode()).hexdigest()
         kwargs["agent_id"] = uuid.UUID(hash_value)
         
+        self.agent_data = Agent.load(self.get_user_agent_path(user_id))
+        
         super().__init__(
             name=name,
             system_message=system_message,
