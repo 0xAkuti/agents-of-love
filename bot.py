@@ -36,10 +36,10 @@ client = discord.Client(intents=intents)
 # Store date managers for each user
 date_managers: Dict[int, DateManager] = {}
 
-def get_date_manager(user_id: int) -> DateManager:
-    if user_id not in date_managers:
-        date_managers[user_id] = DateManager()
-    return date_managers[user_id]
+def get_date_manager(user: discord.User) -> DateManager:
+    if user.id not in date_managers:
+        date_managers[user.id] = DateManager(user=user)
+    return date_managers[user.id]
 
 @client.event
 async def on_message(message: discord.Message):
