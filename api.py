@@ -12,23 +12,28 @@ class ChatRequest(BaseModel):
     user_id: int
     user_name: str
     message: str
+    
+class AutonomeRequest(BaseModel):
+    text: str
+    
+class AutonomeResponse(BaseModel):
+    text: str
 
 class ChatResponse(BaseModel):
     response: str
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+@app.post("/chat", response_model=AutonomeResponse)
+async def chat(request: AutonomeRequest):
     try:
         # Get or create date manager for this user
-        if request.user_id not in date_managers:
-            user = SimpleUser(id=request.user_id, name=request.user_name)
-            date_managers[request.user_id] = DateManager(user=user)
+        if "AutonomeChat" not in date_managers:
+            date_managers["AutonomeChat"] = DateManager(SimpleUser(id=0, name="AutonomeChat"))
             # Initialize the date manager
-            await date_managers[request.user_id].init_memory()
+            await date_managers["AutonomeChat"].init_memory()
         
         # Get response from date manager
-        response = await date_managers[request.user_id].get_manager_response(request.message)
-        return ChatResponse(response=response)
+        response = await date_managers["AutonomeChat"].get_manager_response(request.text)
+        return AutonomeResponse(text=response)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
