@@ -65,7 +65,7 @@ class UserProfile(StoreableBaseModel):
     dislikes: List[str]
     areas_of_expertise_and_knowledge: List[str]
     passionate_topics: List[str]
-    appearance: List[str]
+    appearance: Optional[List[str]] = None
     
 class Agent(StoreableBaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
