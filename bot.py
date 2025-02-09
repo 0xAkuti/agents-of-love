@@ -3,14 +3,20 @@ import logging
 import logging.handlers
 import os
 import signal
-from date_manager import DateManager
-from typing import Dict
+from typing import Dict, List
 
 import dotenv
 import discord
 from discord.ext import commands
 
+from src.model import SimpleUser
+
 dotenv.load_dotenv(override=True)
+
+from autogen_core import TRACE_LOGGER_NAME
+
+logger = logging.getLogger(TRACE_LOGGER_NAME)
+logger.setLevel(logging.DEBUG)
 
 logger = logging.getLogger("aol")
 logger.setLevel(logging.INFO)
@@ -30,6 +36,9 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.addHandler(logging.StreamHandler())
 
+#import after initializing the logger
+from date_manager import DateManager
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.reactions = True
@@ -37,6 +46,42 @@ client = discord.Client(intents=intents)
 
 # Store date managers for each user
 date_managers: Dict[int, DateManager] = {}
+
+def split_message(message: str, max_length: int = 2000) -> List[str]:
+    """Split a message into chunks of maximum length while preserving word boundaries."""
+    if len(message) <= max_length:
+        return [message]
+        
+    chunks = []
+    current_chunk = ""
+    
+    # Split by lines first to preserve formatting
+    lines = message.split('\n')
+    
+    for line in lines:
+        # If the line itself is too long, split by words
+        if len(line) > max_length:
+            words = line.split(' ')
+            for word in words:
+                if len(current_chunk) + len(word) + 1 <= max_length:
+                    current_chunk += (word + ' ')
+                else:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = word + ' '
+            continue
+            
+        # If adding the line would exceed max_length, start a new chunk
+        if len(current_chunk) + len(line) + 1 > max_length:
+            chunks.append(current_chunk.strip())
+            current_chunk = line + '\n'
+        else:
+            current_chunk += line + '\n'
+            
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+        
+    return chunks
 
 async def save_all_states():
     """Save states for all active date managers."""
@@ -52,7 +97,7 @@ async def get_date_manager(user: discord.User) -> DateManager:
     """Get or create a date manager for a user."""
     if user.id not in date_managers:
         # Create new date manager
-        date_manager = DateManager(user=user)
+        date_manager = DateManager(user=SimpleUser(id=user.id, name=user.display_name))
         # Initialize memory and load previous state
         await date_manager.init_memory()
         date_managers[user.id] = date_manager
@@ -75,9 +120,11 @@ async def on_message(message: discord.Message):
         
         # Get response from date manager
         response = await date_manager.get_manager_response(f'{message.author.display_name}: {message.content}')
-
-        # Send response back to Discord
-        await message.reply(response)
+        
+        # Split response into chunks and send each chunk
+        chunks = split_message(response)
+        for chunk in chunks:
+            await message.reply(chunk)
 
 @client.event
 async def on_reaction_add(reaction, user):
