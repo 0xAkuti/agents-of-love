@@ -3,3 +3,5 @@ autogen-ext[openai,langchain]
 python-dotenv
 cdp-langchain
 discord.py
+fastapi
+uvicorn[standard]
