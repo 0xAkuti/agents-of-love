@@ -51,6 +51,12 @@ class AgentRole(str, enum.Enum):
     ASSISTANT = "assistant"
     USER = "user"
     
+class UserAppearance(StoreableBaseModel):
+    hair_color: str
+    gender: str
+    ethnicity: str
+    body_type: str  
+    
 class UserProfile(StoreableBaseModel):
     name: str
     interests: List[str]
@@ -59,6 +65,7 @@ class UserProfile(StoreableBaseModel):
     dislikes: List[str]
     areas_of_expertise_and_knowledge: List[str]
     passionate_topics: List[str]
+    appearance: Optional[UserAppearance] = None
     
 class Agent(StoreableBaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
