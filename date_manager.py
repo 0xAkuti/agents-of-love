@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Callable, List, Optional, Dict, Any
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
@@ -321,37 +322,39 @@ class DateManager:
     async def mint_date_nft(self, conversation: str, participants: list[str]) -> str:
         """Generate an image and mint an NFT for a date."""
         # Generate a prompt for the image
-        prompt = await self.prompt_generator.generate_prompt(conversation, self.user_agent.user_profile)
+        path = UserAgentWithWallet.get_user_agent_path(self.user.id)
+        user_agent = Agent.load(path)
+        prompt = await self.prompt_generator.generate_prompt(conversation, user_agent.user_profile)
         
         # Generate the image using Leonardo
         image_request = LeonardoRequest(prompt=prompt)
         image_response = await self.image_tool.run(image_request, CancellationToken())
-        
+        logging.warning(f"Image generated with prompt: {prompt}\nImage URL: {image_response.urls[0]}")
         if not image_response.urls:
             return "Failed to generate image"
             
         image_url = image_response.urls[0]
-        return f"Image taken during the date: {prompt}\nImage: {image_url}"
+        # return f"Image taken during the date: {prompt}\nImage: {image_url}"
         
         # Register the token
         metadata = self.token_registry.register_token(
             image_url=image_url,
             prompt=prompt,
-            date_summary=summary,
             participants=participants
         )
-        
+        logging.info(f"Token registered: {metadata}")
         # Mint the NFT using CDP toolkit
-        if self.user_agent and self.user_agent.cdp_toolkit:
-            for tool in self.user_agent.cdp_toolkit.get_tools():
-                if tool.name == "mint_nft":
-                    await tool.arun({
-                        "token_id": metadata.token_id,
-                        "image_url": metadata.image_url,
-                        "name": f"Date Memory #{metadata.token_id}",
-                        "description": f"A memorable moment from a date between {', '.join(metadata.participants)}.\n\nDate Summary: {metadata.date_summary}"
-                    })
-                    return f"Successfully minted NFT #{metadata.token_id} with image: {metadata.image_url}"
+        for tool in self.manager_agent.cdp_toolkit.get_tools():
+            if tool.name == "mint_nft":
+                result = await tool.arun({
+                    "contract_address": "0xb598fFa84C2608cC93b203772A6A2683a84aC959",
+                    "destination": await self.get_user_avatar_wallet()
+                })
+                logging.info(f"NFT minted: {result}")
+                result_msg = f"Image taken during the date: {prompt}\nImage: {image_url}\nNFT minted successfully {result}"
+                if result.startswith("Minted NFT from contract"):
+                    result_msg += f"\nOpensea: https://testnets.opensea.io/assets/base_sepolia/0xb598ffa84c2608cc93b203772a6a2683a84ac959/{metadata.token_id}"
+                return result_msg
         
         return f"Failed to mint NFT, but image was generated: {image_url}"
 
