@@ -2,11 +2,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from date_manager import DateManager
 from src.model import SimpleUser
+from src.token_registry import TokenRegistry, TokenMetadata, NFTMetadata
 import uvicorn
+
 app = FastAPI(title="Date Manager API")
 
 # Store date managers for different users
 date_managers = {}
+token_registry = TokenRegistry()
 
 class ChatRequest(BaseModel):
     user_id: int
@@ -21,6 +24,19 @@ class AutonomeResponse(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
+
+@app.get("/token/{token_id}", response_model=NFTMetadata)
+async def get_token_metadata(token_id: int):
+    """Get metadata for a specific token ID."""
+    metadata = token_registry.get_nft_metadata(token_id)
+    if not metadata:
+        raise HTTPException(status_code=404, detail="Token not found")
+    return metadata
+
+@app.get("/tokens")
+async def list_tokens():
+    """List all tokens and their metadata."""
+    return {"tokens": token_registry.registry}
 
 @app.post("/chat", response_model=AutonomeResponse)
 async def chat(request: AutonomeRequest):
