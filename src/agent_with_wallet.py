@@ -41,7 +41,19 @@ class AgentWithWallet(AssistantAgent):
         )
         self.cdp_toolkit = CdpToolkit.from_cdp_agentkit_wrapper(self.cdp_agentkit)
         tools = [CDPLangChainToolAdapter(tool) for tool in self.cdp_toolkit.get_tools()]
+        limited_tools = []
+        transfer_tool = None
+        for tool in tools:
+            if tool.name == 'transfer':
+                transfer_tool = tool
+            elif tool.name in ["get_balance", "get_wallet_details"]:
+                limited_tools.append(tool)
+        tools = limited_tools
         tools.extend(kwargs.pop("tools", []))
+        def transfer_usdc(amount: str, destination: str):
+            """Transfers amount of USDC to a given address"""
+            return transfer_tool._langchain_tool({"amount": amount, "asset_id": "usdc", "destination": destination})
+        tools.append(transfer_usdc)
         super().__init__(
             name=name,
             system_message=system_message,
