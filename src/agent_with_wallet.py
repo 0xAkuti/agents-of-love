@@ -51,7 +51,7 @@ class AgentWithWallet(AssistantAgent):
         tools = limited_tools
         tools.extend(kwargs.pop("tools", []))
         def transfer_usdc(amount: str, destination: str):
-            """Transfers amount of USDC to a given address"""
+            """Transfers amount of USDC to a given wallet address in hexadecimal format"""
             return transfer_tool._langchain_tool({"amount": amount, "asset_id": "usdc", "destination": destination})
         tools.append(transfer_usdc)
         super().__init__(
