@@ -16,6 +16,10 @@ class StoreableBaseModel(BaseModel):
         with open(path, 'r') as file:
             return cls.model_validate_json(file.read())
 
+class SimpleUser(StoreableBaseModel):
+    id: int
+    name: str
+
 class MessageContent(StoreableBaseModel):
     text: str
 

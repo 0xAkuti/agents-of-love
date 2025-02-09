@@ -1,14 +1,10 @@
 import asyncio
 from typing import Callable, List, Optional, Dict, Any
-from pydantic import BaseModel
-from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.teams import RoundRobinGroupChat
-from autogen_agentchat.conditions import MaxMessageTermination
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from date_simulator import DateSimulator
-from src.model import Agent, AgentRole, StoreableBaseModel, UserProfile
+from src.model import Agent, AgentRole, UserProfile, SimpleUser
 from src.agent_with_wallet import AgentWithWallet
 import os
 import pathlib
@@ -23,7 +19,7 @@ dotenv.load_dotenv()
 
 
 class DateManager:
-    def __init__(self, model_name: str = "gpt-4o-mini", user: Optional[discord.User] = None):
+    def __init__(self, model_name: str = "gpt-4o-mini", user: Optional[SimpleUser] = None):
         self.model_name = model_name
         self.user = user
         self.model_client = OpenAIChatCompletionClient(
@@ -164,10 +160,10 @@ class DateManager:
             profile_json = json.dumps(self.user_agent.agent_data.user_profile.model_dump(), indent=2)
             
             # Query for the exact profile content
-            existing_profiles = await self.memory.query(profile_json)
+            query_result = await self.memory.query(profile_json)
             
-            # Only add if profile doesn't exist
-            if not existing_profiles.results:
+            # Only add if profile doesn't exist (check query_result.results)
+            if not query_result.results:
                 await self.memory.add(
                     MemoryContent(
                         content=profile_json,
@@ -230,7 +226,7 @@ class DateManager:
         match_agent = self.available_participants[match_name]
         # match_prompt = match_agent.get_full_system_prompt(num_examples=4)
         
-        self.simulator = DateSimulator(max_messages=6)
+        self.simulator = DateSimulator(max_messages=12)
         self.simulator.model_name = self.model_name
         self.simulator.initialize_model_client()
         
