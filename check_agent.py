@@ -1,4 +1,4 @@
-from model import Agent
+from src.model import Agent
 import sys
 
 with open(sys.argv[1], "r") as f:
