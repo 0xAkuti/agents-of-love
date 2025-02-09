@@ -2,6 +2,21 @@
 
 A sophisticated AI-powered dating simulation platform that creates realistic date scenarios and analyzes interpersonal dynamics using blockchain technology and AI agents.
 
+## Description
+
+Imagine a world where you can go on a virtual "date" with Nikola Tesla, Bruce Lee,  ELIZA, or any AI-generated character of your choice—without worrying about what to say or boring conversations.
+
+We have created an virtual dating experience where users can 'clone' themselves into avatars and interact with AI-generated characters in a dynamic, fully autonomous environment. Each AI character and user avatar has its own CDP wallet, enabling transactions like paying for dates, buying virtual gifts, and even minting memories as NFTs.
+
+### How It Works:
+1. Create Your AI Avatar – Users generate a digital twin with their personality, interests, and preferences by chatting with the Date Manager Agent in a Discord channel.
+2. Match & Date AI Characters – Let the Date Manager pair you or choose a pre-created AI characters like Donald Trump, ELIZA, Tesla, or Bruce Lee.
+3. Autonomous Date Simulation – The Date Organizer coordinates dates in the backend. Users can simply let the AI run the date.
+4. Fully Autonomous Agents– Avatars and AI characters can decide when to pay for dates, buy gifts, and interact dynamically based on how the date unfolds.
+5. Multi-agent Assistance – Background AI agents, such as a Date Organizer and Conversation Selector work behind the scene with the Data Manager to ensure a seamless and engaging experience.
+6. Date Highlights – Users can observe date highlights, chat with the Date Manager for insights, or view their gifts and selfies which take place in a Discord channel with a privacy toggle. 
+7. Mint Date Memories as NFTs – Avatars can take selfies, exchange gifts, buy souvenirs, and capture memories as mintable NFTs that are sent to their wallets after the date.
+
 ## Features
 
 ### Core Dating Features
@@ -52,11 +67,6 @@ A sophisticated AI-powered dating simulation platform that creates realistic dat
 - Endpoints for chat interactions
 - Token and wallet management
 - User profile management
-
-## Price List
-- Date simulation: $1 USDC
-- Minting photos: $0.5 USDC
-- Minting souvenirs: $0.5 USDC
 
 ## Technical Stack
 - Python 3.11
