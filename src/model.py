@@ -65,7 +65,7 @@ class UserProfile(StoreableBaseModel):
     dislikes: List[str]
     areas_of_expertise_and_knowledge: List[str]
     passionate_topics: List[str]
-    appearance: Optional[UserAppearance] = None
+    appearance: List[str]
     
 class Agent(StoreableBaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
@@ -124,8 +124,8 @@ class Agent(StoreableBaseModel):
                 "bio_section": self._format_list_items(self.character.bio, num_examples),
                 "lore_section": self._format_list_items(self.character.lore, num_examples),
                 "knowledge_section": self._format_list_items(self.character.knowledge, num_examples),
-                "style_section": self._format_list_items(self.character.style, num_examples),
-                "adjectives_section": self._format_list_items(self.character.adjectives, num_examples),
+                "style_section": "\n".join(f"- {item}" for item in self.character.style),
+                "adjectives_section": "\n".join(f"- {item}" for item in self.character.adjectives),
                 "topics_section": self._format_list_items(self.character.topics, num_examples),
                 "conversation_examples": self._format_conversation_examples(self.character.conversation_examples, num_examples),
                 "quotes_section": self._format_list_items(self.character.quotes, num_examples) if self.character.quotes else ""
