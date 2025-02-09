@@ -169,27 +169,30 @@ def handle_signals():
 
 if __name__ == "__main__":
     logging.info("Starting bot...")
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    
+    async def runner():
+        try:
+            await client.start(discord_token)
+        finally:
+            await cleanup()
     
     try:
         handle_signals()
-        loop.run_until_complete(client.start(os.getenv("DISCORD_API_TOKEN")))
-        loop.run_forever()
+        discord_token = os.getenv("DISCORD_API_TOKEN")
+        if not discord_token:
+            logger.error("DISCORD_API_TOKEN environment variable is not set")
+            exit(1)
+            
+        logger.info("Starting Discord client...")
+        asyncio.run(runner())  # This ensures cleanup runs even on errors
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt...")
-        loop.run_until_complete(cleanup())
+    except Exception as e:
+        logger.error(f"Error starting bot: {e}")
     finally:
-        # Cancel all remaining tasks
-        pending = asyncio.all_tasks(loop=loop)
-        for task in pending:
-            task.cancel()
-        
-        # Run the event loop one last time to let tasks clean up
-        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-        
-        # Close the loop
+        # Run cleanup synchronously one last time to ensure states are saved
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(save_all_states())
         loop.close()
         logger.info("Bot shutdown complete.")
-        # Force exit to ensure all is stopped
-        os._exit(0)
