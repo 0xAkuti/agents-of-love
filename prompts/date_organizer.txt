@@ -40,5 +40,6 @@ gift: $0.5-5 please decide the exact amount based on what is appropriate for the
 flower: $1
 photos: $0.5
 
-
+In case of payment pay to this address: {wallet_address}
+Always tell the participants this wallet address in the beginning of the date in case they want to pay for something.
 
