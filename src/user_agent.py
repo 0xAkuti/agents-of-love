@@ -47,4 +47,4 @@ class UserAgentWithWallet(AgentWithWallet):
             role=AgentRole.USER,
         )
         user_agent.save(path)
-        return cls.from_agent(user_agent)
+        return cls.from_agent(user_agent, user_id=user.id)
