@@ -3,7 +3,7 @@ from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.base import TaskResult
 from autogen_agentchat.conditions import MaxMessageTermination
 from autogen_agentchat.ui import Console
-from autogen_agentchat.messages import TextMessage
+from autogen_agentchat.messages import TextMessage, AgentEvent, ToolCallRequestEvent, ToolCallExecutionEvent
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from typing import Optional, List, Dict
@@ -51,6 +51,7 @@ class DateSimulator:
             name=name,
             system_message=system_message,
             model_client=self.model_client,
+            reflect_on_tool_use=True
         )
         self.participants[name] = agent
         return agent
@@ -91,9 +92,19 @@ class DateSimulator:
         """Create the selector prompt for the group chat."""
         return pathlib.Path("prompts/speaker_selector.txt").read_text()
         
-    def _format_conversation_history(self, messages: List[TextMessage]) -> str:
+    def _format_conversation_history(self, messages: List[TextMessage|AgentEvent]) -> str:
         """Format the conversation history for summary."""
         return "\n\n".join([f"*{msg.source}*: {msg.content}" for msg in messages if isinstance(msg, TextMessage)])
+        
+    def _format_conversation_history_with_tool_calls(self, messages: List[TextMessage|AgentEvent]) -> str:
+        """Format the conversation history for summary."""
+        output = []
+        for msg in messages:
+            if isinstance(msg, TextMessage):
+                output.append(f"*{msg.source}*: {msg.content}")
+            elif isinstance(msg, ToolCallExecutionEvent):
+                output.append(f"*{msg.source}*: {msg.content[0].content}")
+        return "\n\n".join(output)
         
     async def simulate_date(self, scene_instruction: Optional[str] = None) -> TaskResult:
         """Run the date simulation."""
@@ -128,7 +139,7 @@ class DateSimulator:
             system_message=pathlib.Path("prompts/date_summarizer.txt").read_text(),
             model_client=self.model_client,
         )   
-        conversation_history = self._format_conversation_history(conversation_result.messages)
+        conversation_history = self._format_conversation_history_with_tool_calls(conversation_result.messages)
         summary_response = await summarizer.on_messages(
             [TextMessage(
                 content=f"Please summarize the date between {', '.join(self.participants.keys())}:\n\n{conversation_history}",
@@ -148,7 +159,7 @@ class DateSimulator:
         # save chat and summary as markdown
         with open(base_path / f"{i}_{'_'.join(self.participants.keys())}.md", "w") as f:
             f.write(f"# Conversation between {'_'.join(self.participants.keys())}\n")
-            f.write(self._format_conversation_history(result.messages))
+            f.write(self._format_conversation_history_with_tool_calls(result.messages))
             f.write("\n# Summary\n")
             f.write(summary)
 
