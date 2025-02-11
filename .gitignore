@@ -5,3 +5,5 @@ venv
 conversations
 agents/users
 *.sqlite
+*.log
+states
