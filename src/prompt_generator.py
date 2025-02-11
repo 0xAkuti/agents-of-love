@@ -9,9 +9,10 @@ class PromptGenerator:
         self.model_client = model_client
         
         system_message = """You are an expert at generating prompts for image generation. Your task is to analyze date conversations and generate a prompt for a memorable photo that the participants might have taken during their date.
+If there is a photo happening in the conversation, use that as the basis for the prompt.
 
 The prompt should:
-1. Be detailed and but not too long (max 1500 characters)
+1. Be detailed and but not too long (max 1000 characters)
 2. Capture a specific moment or scene from the date
 3. Include the physical descriptions of the participants if available and full names if available
 4. Set the mood and atmosphere of the scene
@@ -28,6 +29,12 @@ ALWAYS KEEP THE PROMPT SHORT AND TO THE POINT"""
     
     async def generate_prompt(self, conversation: str, user: UserProfile) -> str:
         """Generate an image prompt from a date conversation."""
+        
+        conversation = conversation.replace("Bruce", "Bruce Lee")
+        conversation = conversation.replace("Arnold", "Arnold Schwarzenegger")
+        conversation = conversation.replace("Trump", "Donald Trump")
+        conversation = conversation.replace("Tesla", "Nikola Tesla")
+        
         message = f"""Based on this date conversation, generate a prompt for an image that captures a memorable moment from the date.
 
 Conversation:
