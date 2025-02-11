@@ -1,9 +1,10 @@
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from autogen_core.memory import ListMemory
 from autogen_agentchat.agents import AssistantAgent
-from src.model import UserProfile
+
+from src.models.model import UserProfile
+
 class PromptGenerator:
     def __init__(self, model_client: OpenAIChatCompletionClient):
         self.model_client = model_client

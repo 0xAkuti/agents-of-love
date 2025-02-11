@@ -3,18 +3,17 @@ import os
 import pathlib
 import uuid
 import json
-from autogen_agentchat.agents import AssistantAgent
-from src.model import Agent, ModelProvider, AgentRole
-from cdp_langchain.agent_toolkits import CdpToolkit
-from src.cdp_landchain_adapter import CDPLangChainToolAdapter
-from cdp_langchain.utils.cdp_agentkit_wrapper import CdpAgentkitWrapper
-from src.wallet_store import WalletStore
+import hashlib
 import dotenv
+from autogen_agentchat.agents import AssistantAgent
 from autogen_core.models import ChatCompletionClient
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from cdp.wallet import Wallet
-import hashlib
-from autogen_core.memory import Memory
+from cdp_langchain.agent_toolkits import CdpToolkit
+from cdp_langchain.utils.cdp_agentkit_wrapper import CdpAgentkitWrapper
+
+from src.models.model import Agent, ModelProvider, AgentRole
+from src.server.wallet_store import WalletStore
+from src.tools.cdp_landchain_adapter import CDPLangChainToolAdapter
 
 	
 dotenv.load_dotenv(override=True)

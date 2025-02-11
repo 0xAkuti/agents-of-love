@@ -1,23 +1,23 @@
 import asyncio
 import logging
-from typing import Callable, List, Optional, Dict, Any
+from typing import Callable, List, Optional, Dict
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from date_simulator import DateSimulator
-from src.model import Agent, AgentRole, UserProfile, SimpleUser
-from src.agent_with_wallet import AgentWithWallet
 import os
 import pathlib
 import dotenv
-import discord
 import json
-from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
-from src.leonardo_image import LeonardoImageTool, LeonardoRequest
-from src.prompt_generator import PromptGenerator
-from src.token_registry import TokenRegistry
 
-from src.user_agent import UserAgentWithWallet
+from src.models.model import Agent, AgentRole, UserProfile, SimpleUser
+from src.models.agent_with_wallet import AgentWithWallet
+from src.tools.date_simulator import DateSimulator
+from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
+from src.tools.leonardo_image import LeonardoImageTool, LeonardoRequest
+from src.agents.prompt_generator import PromptGenerator
+from src.server.token_registry import TokenRegistry
+
+from models.user_agent import UserAgentWithWallet
 dotenv.load_dotenv()
 
 

@@ -1,3 +1,10 @@
+from typing import Optional, List, Dict
+import os
+import dotenv
+import pathlib
+import argparse
+import asyncio
+
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.base import TaskResult
@@ -6,14 +13,11 @@ from autogen_agentchat.ui import Console
 from autogen_agentchat.messages import TextMessage, AgentEvent, ToolCallRequestEvent, ToolCallExecutionEvent
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from typing import Optional, List, Dict
-import os
-import dotenv
-import pathlib
-from src.agent_with_wallet import AgentWithWallet
-from src.model import Agent
-import argparse
-import asyncio
+
+from src.models.agent_with_wallet import AgentWithWallet
+from src.models.model import Agent
+
+
 dotenv.load_dotenv()
 
 class DateSimulator:

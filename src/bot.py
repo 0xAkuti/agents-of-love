@@ -7,9 +7,8 @@ from typing import Dict, List
 
 import dotenv
 import discord
-from discord.ext import commands
 
-from src.model import SimpleUser
+from src.models.model import SimpleUser
 
 dotenv.load_dotenv(override=True)
 
@@ -37,7 +36,7 @@ logger.addHandler(handler)
 logger.addHandler(logging.StreamHandler())
 
 #import after initializing the logger
-from date_manager import DateManager
+from src.agents.date_manager import DateManager
 
 intents = discord.Intents.default()
 intents.message_content = True

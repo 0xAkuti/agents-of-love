@@ -1,13 +1,12 @@
 import hashlib
-import os
 import pathlib
 import uuid
-from src.model import Agent, AgentRole, ModelProvider
-from src.agent_with_wallet import AgentWithWallet
-from src.model import AgentRole
 from autogen_core.models import ChatCompletionClient
-from src.model import SimpleUser
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+
+from src.models.model import Agent, AgentRole, ModelProvider, SimpleUser
+from src.models.agent_with_wallet import AgentWithWallet
+
+
 class UserAgentWithWallet(AgentWithWallet):
     def __init__(self, user_id: int, name: str, system_message: str, model_client: ChatCompletionClient, agent_role: AgentRole = AgentRole.USER, **kwargs):
         # Create deterministic UUID based on discord user id

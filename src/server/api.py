@@ -1,9 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from date_manager import DateManager
-from src.model import SimpleUser
-from src.token_registry import TokenRegistry, TokenMetadata, NFTMetadata
 import uvicorn
+
+from src.agents.date_manager import DateManager
+from src.models.model import SimpleUser
+from src.server.token_registry import TokenRegistry, NFTMetadata
 
 app = FastAPI(title="Date Manager API")
 
