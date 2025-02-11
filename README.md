@@ -1,10 +1,10 @@
 # Agents of Love 💖
 
-A sophisticated AI-powered dating simulation platform that creates realistic date scenarios and analyzes interpersonal dynamics using blockchain technology and AI agents.
+An AI-powered dating simulation platform that creates virtual date scenarios and analyzes interpersonal dynamics using blockchain technology and AI agents.
 
 ## Description
 
-Imagine a world where you can go on a virtual "date" with Nikola Tesla, Bruce Lee,  ELIZA, or any AI-generated character of your choice—without worrying about what to say or boring conversations.
+Imagine a world where you can go on a virtual "date" with Nikola Tesla, Bruce Lee, ELIZA, or any AI-generated character of your choice—without worrying about what to say or boring conversations.
 
 We have created an virtual dating experience where users can 'clone' themselves into avatars and interact with AI-generated characters in a dynamic, fully autonomous environment. Each AI character and user avatar has its own CDP wallet, enabling transactions like paying for dates, buying virtual gifts, and even minting memories as NFTs.
 
@@ -20,7 +20,6 @@ We have created an virtual dating experience where users can 'clone' themselves 
 6. Date Highlights – Users can observe date highlights, chat with the Date Manager for insights, or view their gifts and selfies which take place in a Discord channel with a privacy toggle. 
 7. Mint Date Memories as NFTs – Avatars can take selfies, exchange gifts, buy souvenirs, and capture memories as mintable NFTs that are sent to their wallets after the date.
 
-## Features
 
 ### Core Dating Features
 - Create personalized AI dating profiles with:
@@ -30,57 +29,33 @@ We have created an virtual dating experience where users can 'clone' themselves 
   - Areas of expertise
   - Personal preferences and dislikes
   - Unique experiences
-- Run natural date simulations between AI agents with distinct personalities
+- Run natural date simulations between AI agents and Avatars with distinct personalities
 - Get detailed analysis of date chemistry and interaction dynamics
 - Save conversations and summaries as markdown files
-- Configurable environment descriptions and scene settings
+- AI-generated date environment and scene settings
+- Persistant memory for AI assistant
 
-### AI-Powered Features
-- Advanced AI agents with unique personalities and conversation styles
-- Dynamic conversation generation based on personality traits
-- Intelligent date matching based on compatibility
-- Real-time interaction analysis
-- AI-generated date summaries and feedback
-- Custom prompt generation for personalized experiences
 
-### Blockchain Integration
-- Each agent has their own crypto wallet (using CDP toolkit)
-- Support for cryptocurrency transactions (USDC)
-- NFT minting for date memories
-  - Date photos
-  - Special moments
-  - Souvenirs and gifts
-- Token registry for managing digital assets
-- Secure wallet management system
+## How It's Made
+- Coinbase Agent Kit – Each user avatar and AI character is equipped with a CDP wallet for payment
+- Multi-Agent System: The system runs on Autogen, coordinating multiple AI agents:
+  - Three AI Assistants (Date Manager, Date Organizer, Conversation Selector) handle date logistics. We used prompts to define their roles.
+  - Fully Autonomous Agents (user avatars & AI characters) also have unique character files defining their communication style and personality. We used prompts for dating guideline.
+- Discord as the Frontend and primary UI
+- Full date simulation run run on a server-side backend using Autogen
+- NFT smart contracts deployed by the agent on Base Sepolia (contract address: 0xb598fFa84C2608cC93b203772A6A2683a84aC959). NFT date memories minted by the agent, viewable on OpenSea (https://testnets.opensea.io/collection/date-memories).
 
-### Image Generation
-- AI-powered image generation for date moments
-- Custom image prompts based on date context
-- Integration with Leonardo AI for high-quality images
-- NFT creation from generated images
-
-### Discord Integration
-- Discord bot for easy access
-- User profile management through Discord
-- Interactive date simulation commands
-- Real-time notifications and updates
-
-### API Support
-- FastAPI-based REST API
-- Endpoints for chat interactions
-- Token and wallet management
-- User profile management
-
-## Technical Stack
-- Python 3.11
+### Technical Stack
+- Autogen multi-agent framework 
 - OpenAI GPT-4
 - FastAPI
-- Discord.py
+- Discord
 - CDP Toolkit for blockchain integration
 - Leonardo AI for image generation
 - SQLite for wallet storage
 - Docker support
 
+  
 ## Getting Started
 
 ### Prerequisites
