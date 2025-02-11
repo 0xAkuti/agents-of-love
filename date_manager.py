@@ -58,7 +58,13 @@ class DateManager:
         self.manager_agent = AgentWithWallet.from_json(
             path=pathlib.Path("agents/date_manager.json"),
             system_message=self.manager_template,
-            tools=[self.image_tool, self.create_user_avatar, self.list_available_participants, self.run_date_simulation, self.get_user_avatar_wallet, self.get_user_avatar_balance],
+            tools=[self.image_tool, 
+                   self.create_user_avatar, 
+                   self.list_available_participants, 
+                   self.run_date_simulation, 
+                   self.get_user_avatar_wallet, 
+                   self.get_user_avatar_balance,
+                   self.mint_date_nft],
             reflect_on_tool_use=True,
             memory=[self.memory]
         )
@@ -252,13 +258,13 @@ class DateManager:
         
         # Run the simulation
         result = await self.simulator.simulate_date(scene_instruction)
-        conversation = self.simulator._format_conversation_history(result.messages)
+        conversation = self.simulator._format_conversation_history_with_tool_calls(result.messages)
         summary = await self.simulator.summarize_date(result)
         
         # After the date, mint an NFT
         participants = [self.user_agent.name, match_name]
         try:
-            nft_result = await self.mint_date_nft(conversation, participants)
+            nft_result = await self._mint_date_nft_from_conversation(conversation, participants)
         except Exception as e:
             nft_result = f"Error minting NFT: {str(e)}"
         
@@ -319,12 +325,13 @@ class DateManager:
             manager_response = await self.get_manager_response(user_input)
             print(f"\nDate Manager: {manager_response}")
 
-    async def mint_date_nft(self, conversation: str, participants: list[str]) -> str:
-        """Generate an image and mint an NFT for a date."""
-        # Generate a prompt for the image
-        path = UserAgentWithWallet.get_user_agent_path(self.user.id)
-        user_agent = Agent.load(path)
-        prompt = await self.prompt_generator.generate_prompt(conversation, user_agent.user_profile)
+    async def mint_date_nft(self, prompt: str, participants: list[str]) -> str:
+        """Generate an image and mint an NFT for a date. Give a detailed prompt describing the image, setting and participants."""
+        
+        prompt = prompt.replace("Bruce", "Bruce Lee")
+        prompt = prompt.replace("Arnold", "Arnold Schwarzenegger")
+        prompt = prompt.replace("Trump", "Donald Trump")
+        prompt = prompt.replace("Tesla", "Nikola Tesla")
         
         # Generate the image using Leonardo
         image_request = LeonardoRequest(prompt=prompt)
@@ -357,6 +364,15 @@ class DateManager:
                 return result_msg
         
         return f"Failed to mint NFT, but image was generated: {image_url}"
+
+    async def _mint_date_nft_from_conversation(self, conversation: str, participants: list[str]) -> str:
+        """Generate an image and mint an NFT for a date."""
+        # Generate a prompt for the image
+        path = UserAgentWithWallet.get_user_agent_path(self.user.id)
+        user_agent = Agent.load(path)
+        prompt = await self.prompt_generator.generate_prompt(conversation, user_agent.user_profile)
+        
+        return await self.mint_date_nft(prompt, participants)
 
 async def main():
     manager = DateManager()
