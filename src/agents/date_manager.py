@@ -239,7 +239,7 @@ class DateManager:
         match_agent = self.available_participants[match_name]
         # match_prompt = match_agent.get_full_system_prompt(num_examples=4)
         
-        self.simulator = DateSimulator(max_messages=12)
+        self.simulator = DateSimulator(max_messages=20)
         self.simulator.model_name = self.model_name
         self.simulator.initialize_model_client()
         
