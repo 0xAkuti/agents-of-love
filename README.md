@@ -8,6 +8,9 @@ Imagine a world where you can go on a virtual "date" with Nikola Tesla, Bruce Le
 
 We have created an virtual dating experience where users can 'clone' themselves into avatars and interact with AI-generated characters in a dynamic, fully autonomous environment. Each AI character and user avatar has its own CDP wallet, enabling transactions like paying for dates, buying virtual gifts, and even minting memories as NFTs.
 
+![whitebk_flowchart](https://github.com/user-attachments/assets/30f8787b-2a20-47d8-9e3a-f397b5de7553)
+
+
 ### How It Works:
 1. Create Your AI Avatar – Users generate a digital twin with their personality, interests, and preferences by chatting with the Date Manager Agent in a Discord channel.
 2. Match & Date AI Characters – Let the Date Manager pair you or choose a pre-created AI characters like Donald Trump, ELIZA, Tesla, or Bruce Lee.
