@@ -16,8 +16,8 @@ from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
 from src.tools.leonardo_image import LeonardoImageTool, LeonardoRequest
 from src.agents.prompt_generator import PromptGenerator
 from src.server.token_registry import TokenRegistry
+from src.models.user_agent import UserAgentWithWallet
 
-from models.user_agent import UserAgentWithWallet
 dotenv.load_dotenv()
 
 

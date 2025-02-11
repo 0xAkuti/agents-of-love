@@ -166,7 +166,7 @@ def handle_signals():
     loop.add_signal_handler(signal.SIGTERM, lambda: loop.create_task(cleanup()))
     logger.info("Signal handlers registered")
 
-if __name__ == "__main__":
+def main():
     logging.info("Starting bot...")
     
     async def runner():
