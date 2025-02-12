@@ -19,7 +19,8 @@ class PromptGenerator:
             model_client=self.model_client
         )
     
-    def _fix_full_name(self, name: str) -> str:
+    @staticmethod
+    def _fix_full_name(conversation: str) -> str:
         names = {'Bruce': 'Bruce Lee', 'Arnold': 'Arnold Schwarzenegger', 'Trump': 'Donald Trump', 'Tesla': 'Nikola Tesla'}
         for short_name, full_name in names.items():
             conversation = conversation.replace(full_name, short_name) # first replace full name with short name to prevent double names in the prompt
