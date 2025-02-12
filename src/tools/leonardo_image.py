@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from autogen_core.tools import BaseTool
 from autogen_core import CancellationToken
 
+from src.agents.prompt_generator import PromptGenerator
+
 class LeonardoRequest(BaseModel):
     """Parameters for image generation."""
     prompt: str = Field(..., description="A text description of the image you want to generate")
@@ -83,7 +85,7 @@ class LeonardoImageTool(BaseTool[LeonardoRequest, LeonardoResponse]):
                 "modelId": self.model_id,
                 "num_images": 1,
                 "presetStyle": "CINEMATIC",
-                "prompt": args.prompt,
+                "prompt": PromptGenerator._fix_full_name(args.prompt),
                 "negative_prompt": args.negative_prompt,
                 "seed": 1234
             }
