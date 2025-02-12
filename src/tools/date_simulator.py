@@ -105,9 +105,10 @@ class DateSimulator:
         output = []
         for msg in messages:
             if isinstance(msg, TextMessage):
-                output.append(f"*{msg.source}*: {msg.content}")
+                output.append(f"**{msg.source}**: {msg.content}")
             elif isinstance(msg, ToolCallExecutionEvent):
-                output.append(f"*{msg.source}*: {msg.content[0].content}")
+                for tool_call in msg.content:
+                    output.append(f"**{msg.source}** used a tool: {tool_call.content}")
         return "\n\n".join(output)
         
     async def simulate_date(self, scene_instruction: Optional[str] = None) -> TaskResult:
