@@ -29,8 +29,8 @@ ENV DISCORD_TOKEN=""
 ENV CDP_API_KEY_NAME=""
 ENV CDP_API_KEY_PRIVATE_KEY=""
 ENV NETWORK_ID=""
-# Add the current directory to PYTHONPATH
-ENV PYTHONPATH="/app:${PYTHONPATH}"
+# Set PYTHONPATH to include the app directory
+ENV PYTHONPATH=/app
 
 # Expose the API port
 EXPOSE 8000
