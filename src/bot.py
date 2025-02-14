@@ -142,6 +142,11 @@ async def on_reaction_add(reaction, user):
 async def on_ready():
     logger.info("Logged in as %s", client.user.name)
 
+@client.event
+async def on_member_join(member):
+    logger.info(f"User {member.name} joined the server")
+    await member.send(f"Hey {member.name}, welcome to Virtura. I'm Nova, your date manager. I'll help you find love in the metaverse.")
+
 async def cleanup():
     """Cleanup function to save states and close connections."""
     logger.info("Starting cleanup...")
@@ -153,45 +158,38 @@ async def cleanup():
     if not client.is_closed():
         await client.close()
     
-    # Stop the event loop
-    loop = asyncio.get_event_loop()
-    loop.stop()
-    
     logger.info("Cleanup complete.")
 
 def handle_signals():
     """Set up signal handlers."""
     loop = asyncio.get_event_loop()
-    loop.add_signal_handler(signal.SIGINT, lambda: loop.create_task(cleanup()))
-    loop.add_signal_handler(signal.SIGTERM, lambda: loop.create_task(cleanup()))
+    loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(cleanup()))
+    loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(cleanup()))
     logger.info("Signal handlers registered")
+
+async def start_bot(token: str):
+    """Start the bot with the given token."""
+    try:
+        await client.start(token)
+    finally:
+        await cleanup()
 
 def main():
     logging.info("Starting bot...")
     
-    async def runner():
-        try:
-            await client.start(discord_token)
-        finally:
-            await cleanup()
+    discord_token = os.getenv("DISCORD_API_TOKEN")
+    if not discord_token:
+        logger.error("DISCORD_API_TOKEN environment variable is not set")
+        exit(1)
+        
+    handle_signals()
+    logger.info("Starting Discord client...")
     
     try:
-        handle_signals()
-        discord_token = os.getenv("DISCORD_API_TOKEN")
-        if not discord_token:
-            logger.error("DISCORD_API_TOKEN environment variable is not set")
-            exit(1)
-            
-        logger.info("Starting Discord client...")
-        asyncio.run(runner())  # This ensures cleanup runs even on errors
+        asyncio.run(start_bot(discord_token))
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt...")
     except Exception as e:
         logger.error(f"Error starting bot: {e}")
     finally:
-        # Run cleanup synchronously one last time to ensure states are saved
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(save_all_states())
-        loop.close()
         logger.info("Bot shutdown complete.")
