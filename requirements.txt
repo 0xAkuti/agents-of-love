@@ -5,3 +5,7 @@ cdp-langchain
 discord.py
 fastapi
 uvicorn[standard]
+starknet-py
+aioboto3
+aiofiles
+nest-asyncio
