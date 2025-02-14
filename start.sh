@@ -1,8 +1,8 @@
 #!/bin/bash
 echo "Starting API ..."
 # Start the FastAPI server in the background
-python api.py &
+python src/server/api.py &
 echo "Starting Discord bot..."
 # Start the Discord bot
-python bot.py
+python src/bot.py
 echo "Done!"
