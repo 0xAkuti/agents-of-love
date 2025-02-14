@@ -10,7 +10,7 @@ import dotenv
 import json
 
 from src.models.model import Agent, AgentRole, UserProfile, SimpleUser
-from src.models.agent_with_wallet import AgentWithWallet
+from src.models.agent_with_wallet import AgentWithWallet, WalletProvider
 from src.tools.date_simulator import DateSimulator
 from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
 from src.tools.leonardo_image import LeonardoImageTool, LeonardoRequest
@@ -198,7 +198,7 @@ class DateManager:
         """Get the wallt address of the users avatar."""
         if self.user_agent is None:
             return "User avatar not found"
-        return self.user_agent.cdp_agentkit.wallet.default_address.address_id
+        return self.user_agent.get_address()
     
     async def get_user_avatar_balance(self, asset_id: str) -> str:
         """Get balance for all addresses in the wallet of the users avatar for a given asset.
@@ -212,9 +212,12 @@ class DateManager:
         """
         if self.user_agent is None:
             return "User avatar not found"
-        for tool in self.user_agent.cdp_toolkit.get_tools():
-            if tool.name == "get_balance":
-                return await tool.arun({"asset_id": asset_id})
+        if self.user_agent.wallet_provider == WalletProvider.CDP:
+            for tool in self.user_agent.cdp_toolkit.get_tools():
+                if tool.name == "get_balance":
+                    return await tool.arun({"asset_id": asset_id})
+        elif self.user_agent.wallet_provider == WalletProvider.STARKNET:
+            return await self.user_agent.starknet_toolkit.get_usdc_balance()
         return "No balance tool found"
         
     async def list_available_participants(self) -> str:
@@ -239,12 +242,12 @@ class DateManager:
         match_agent = self.available_participants[match_name]
         # match_prompt = match_agent.get_full_system_prompt(num_examples=4)
         
-        self.simulator = DateSimulator(max_messages=20)
+        self.simulator = DateSimulator(max_messages=12)
         self.simulator.model_name = self.model_name
         self.simulator.initialize_model_client()
         
         # Create date organizer from template
-        self.simulator.set_date_organizer(self.organizer_template, self.manager_agent.cdp_agentkit.wallet.default_address.address_id)
+        self.simulator.set_date_organizer(self.organizer_template, self.manager_agent.get_address())
         
         # Add the participants
         #self.simulator.add_participant(self.user_profile.name, user_prompt)
@@ -272,7 +275,8 @@ class DateManager:
         return f"{conversation}\n\n{nft_result}"
         
     async def create_user_avatar(self, name: str, interests: List[str], personality_traits: List[str], conversation_style: List[str], dislikes: List[str], areas_of_expertise_and_knowledge: List[str], passionate_topics: List[str], user_appearance: List[str]):
-        """Create or update a user avatar profile from the collected data, call without any markdown formatting."""
+        """Create or update a user avatar profile from the collected data, call without any markdown formatting.
+        And deploy their account if using starknet and not deployed yet."""
         if self.user_agent is None:
             raise ValueError("User avatar not found")
         path = UserAgentWithWallet.get_user_agent_path(self.user.id)
@@ -289,6 +293,13 @@ class DateManager:
             user_agent.user_profile.passionate_topics = passionate_topics
             user_agent.user_profile.appearance = user_appearance
         user_agent.save(path)
+        
+        if self.user_agent.wallet_provider == WalletProvider.STARKNET:
+            funder_seed = self.manager_agent.wallet_data.seed
+            if isinstance(funder_seed, str):
+                funder_seed = int(funder_seed, 16)
+            await self.user_agent.starknet_toolkit.setup_account_if_needed(funder_seed)
+            return f"Updated profile for {user_agent.user_profile.name} and deployed account {self.user_agent.get_address()}"
 
         return f"Updated profile for {user_agent.user_profile.name}"
         
@@ -351,17 +362,21 @@ class DateManager:
         )
         logging.info(f"Token registered: {metadata}")
         # Mint the NFT using CDP toolkit
-        for tool in self.manager_agent.cdp_toolkit.get_tools():
-            if tool.name == "mint_nft":
-                result = await tool.arun({
-                    "contract_address": "0xb598fFa84C2608cC93b203772A6A2683a84aC959",
-                    "destination": await self.get_user_avatar_wallet()
-                })
-                logging.info(f"NFT minted: {result}")
-                result_msg = f"Image taken during the date: {prompt}\nImage: {image_url}\nNFT minted successfully {result}"
-                if result.startswith("Minted NFT from contract"):
-                    result_msg += f"\nOpensea: https://testnets.opensea.io/assets/base_sepolia/0xb598ffa84c2608cc93b203772a6a2683a84ac959/{metadata.token_id}"
-                return result_msg
+        if self.user_agent.wallet_provider == WalletProvider.CDP:
+            for tool in self.manager_agent.cdp_toolkit.get_tools():
+                if tool.name == "mint_nft":
+                    result = await tool.arun({
+                        "contract_address": "0xb598fFa84C2608cC93b203772A6A2683a84aC959",
+                        "destination": await self.get_user_avatar_wallet()
+                    })
+                    logging.info(f"NFT minted: {result}")
+                    result_msg = f"Image taken during the date: {prompt}\nImage: {image_url}\nNFT minted successfully {result}"
+                    if result.startswith("Minted NFT from contract"):
+                        result_msg += f"\nOpensea: https://testnets.opensea.io/assets/base_sepolia/0xb598ffa84c2608cc93b203772a6a2683a84ac959/{metadata.token_id}"
+                    return result_msg
+        elif self.user_agent.wallet_provider == WalletProvider.STARKNET:
+            result = await self.manager_agent.starknet_toolkit.mint_nft(self.user_agent.get_address(), metadata.token_id)
+            return f"Image taken during the date: {prompt}\nImage: {image_url}\nNFT minted successfully\n {result}"
         
         return f"Failed to mint NFT, but image was generated: {image_url}"
 
