@@ -132,3 +132,11 @@ class AgentWithWallet(AssistantAgent):
 
     def get_wallet(self):
         return self.cdp_agentkit.wallet
+    
+    def get_address(self) -> str:
+        if self.wallet_provider == WalletProvider.CDP:
+            return self.cdp_agentkit.wallet.default_address.address_id
+        elif self.wallet_provider == WalletProvider.STARKNET:
+            return self.starknet_toolkit.get_address()
+        else:
+            raise ValueError(f"Unsupported wallet provider: {self.wallet_provider}")
