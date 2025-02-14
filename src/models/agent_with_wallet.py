@@ -14,6 +14,13 @@ from cdp_langchain.utils.cdp_agentkit_wrapper import CdpAgentkitWrapper
 from src.models.model import Agent, ModelProvider, AgentRole
 from src.server.wallet_store import WalletStore
 from src.tools.cdp_landchain_adapter import CDPLangChainToolAdapter
+import enum
+
+from src.tools.starknet_toolkit import StarknetToolkit
+
+class WalletProvider(enum.Enum):
+    CDP = "cdp"
+    STARKNET = "starknet"
 
 	
 dotenv.load_dotenv(override=True)
@@ -21,7 +28,7 @@ dotenv.load_dotenv(override=True)
 class AgentWithWallet(AssistantAgent):
     _wallet_store = WalletStore()
 
-    def __init__(self, name: str, system_message: str, model_client: ChatCompletionClient, agent_id: str | uuid.UUID | None = None, agent_role: AgentRole = AgentRole.ASSISTANT, **kwargs):
+    def __init__(self, name: str, system_message: str, model_client: ChatCompletionClient, agent_id: str | uuid.UUID | None = None, agent_role: AgentRole = AgentRole.ASSISTANT, wallet_provider: WalletProvider = WalletProvider.CDP, **kwargs):
         if agent_id is None:
             # Create deterministic UUID based on hash of name and system message
             combined = f"{name}{system_message}".encode()
@@ -33,26 +40,38 @@ class AgentWithWallet(AssistantAgent):
             self.agent_id = agent_id#
         self.agent_role = agent_role
         self.network_id = os.environ.get("NETWORK_ID", "base-sepolia")
-        wallet_data = self._wallet_store.load_wallet(str(self.agent_id))
+        if "starknet" in self.network_id:
+            self.wallet_provider = WalletProvider.STARKNET
+            print('USING STARKNET')
+        else:
+            self.wallet_provider = WalletProvider.CDP
+            print('USING CDP')
+        self.wallet_data = self._wallet_store.load_wallet(str(self.agent_id))
+        # self.wallet_provider = wallet_provider
         self.cdp_agentkit = CdpAgentkitWrapper(
-            network_id=self.network_id,
-            cdp_wallet_data=json.dumps(wallet_data.to_dict()) if wallet_data else None
+            network_id="base-sepolia",
+            cdp_wallet_data=json.dumps(self.wallet_data.to_dict()) if self.wallet_data else None
         )
-        self.cdp_toolkit = CdpToolkit.from_cdp_agentkit_wrapper(self.cdp_agentkit)
-        tools = [CDPLangChainToolAdapter(tool) for tool in self.cdp_toolkit.get_tools()]
-        limited_tools = []
-        transfer_tool = None
-        for tool in tools:
-            if tool.name == 'transfer':
-                transfer_tool = tool
-            elif tool.name in ["get_balance", "get_wallet_details"]:
-                limited_tools.append(tool)
-        tools = limited_tools
+        if self.wallet_provider == WalletProvider.CDP:
+            self.cdp_toolkit = CdpToolkit.from_cdp_agentkit_wrapper(self.cdp_agentkit)
+            tools = [CDPLangChainToolAdapter(tool) for tool in self.cdp_toolkit.get_tools()]
+            limited_tools = []
+            transfer_tool = None
+            for tool in tools:
+                if tool.name == 'transfer':
+                    transfer_tool = tool
+                elif tool.name in ["get_balance", "get_wallet_details"]:
+                    limited_tools.append(tool)
+            tools = limited_tools
+            def transfer_usdc(amount: str, destination: str):
+                """Transfers amount of USDC to a given wallet address in hexadecimal format"""
+                return transfer_tool._langchain_tool({"amount": amount, "asset_id": "usdc", "destination": destination})
+            tools.append(transfer_usdc)
+        elif self.wallet_provider == WalletProvider.STARKNET:
+            self.starknet_toolkit = StarknetToolkit(self.wallet_data.seed)
+            tools = self.starknet_toolkit.get_tools()
+
         tools.extend(kwargs.pop("tools", []))
-        def transfer_usdc(amount: str, destination: str):
-            """Transfers amount of USDC to a given wallet address in hexadecimal format"""
-            return transfer_tool._langchain_tool({"amount": amount, "asset_id": "usdc", "destination": destination})
-        tools.append(transfer_usdc)
         super().__init__(
             name=name,
             system_message=system_message,
@@ -61,7 +80,7 @@ class AgentWithWallet(AssistantAgent):
             **kwargs
         )
         self._save_agent(name, system_message)
-        if wallet_data is None:
+        if self.wallet_data is None:
             self._wallet_store.save_wallet(str(self.agent_id), self.cdp_agentkit.wallet)
         logging.info(f"Agent {name!r} with ID {self.agent_id} created, wallet: {self.cdp_agentkit.wallet.default_address.address_id}")
         
