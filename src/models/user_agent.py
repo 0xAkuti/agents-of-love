@@ -5,6 +5,8 @@ from autogen_core.models import ChatCompletionClient
 
 from src.models.model import Agent, AgentRole, ModelProvider, SimpleUser
 from src.models.agent_with_wallet import AgentWithWallet
+from src.storage.manager import StorageManager
+from src.config import Config
 
 
 class UserAgentWithWallet(AgentWithWallet):
@@ -13,7 +15,8 @@ class UserAgentWithWallet(AgentWithWallet):
         hash_value = hashlib.md5(str(user_id).encode()).hexdigest()
         kwargs["agent_id"] = uuid.UUID(hash_value)
         
-        self.agent_data = Agent.load(self.get_user_agent_path(user_id))
+        self.storage_manager = StorageManager()
+        self.user_id = user_id
         
         super().__init__(
             name=name,
@@ -32,11 +35,18 @@ class UserAgentWithWallet(AgentWithWallet):
     def get_user_agent_path(user_id: int) -> pathlib.Path:
         return pathlib.Path(f"agents/users/{user_id}.json")
 
+    async def save_agent_data(self):
+        """Save agent data using storage manager"""
+        await self.storage_manager.save_user_agent(self.user_id, self.agent_data.model_dump())
+
     @classmethod
-    def load_or_create(cls, user: SimpleUser):
-        path = UserAgentWithWallet.get_user_agent_path(user.id)
-        if path.exists():
-            return cls.from_json(user_id=user.id, path=path)
+    async def load_or_create(cls, user: SimpleUser):
+        storage_manager = StorageManager()
+        agent_data = await storage_manager.load_user_agent(user.id)
+        
+        if agent_data:
+            agent = Agent.model_validate(agent_data)
+            return await cls.from_agent(agent, user_id=user.id)
 
         user_agent = Agent(
             id=cls.get_user_agent_id(user.id),
@@ -45,5 +55,5 @@ class UserAgentWithWallet(AgentWithWallet):
             model_provider=ModelProvider(provider='openai', model='gpt-4o-mini'),
             role=AgentRole.USER,
         )
-        user_agent.save(path)
-        return cls.from_agent(user_agent, user_id=user.id)
+        await storage_manager.save_user_agent(user.id, user_agent.model_dump())
+        return await cls.from_agent(user_agent, user_id=user.id)

@@ -98,7 +98,7 @@ async def get_date_manager(user: discord.User) -> DateManager:
         # Create new date manager
         date_manager = DateManager(user=SimpleUser(id=user.id, name=user.display_name))
         # Initialize memory and load previous state
-        await date_manager.init_memory()
+        await date_manager.initialize()
         date_managers[user.id] = date_manager
     return date_managers[user.id]
 

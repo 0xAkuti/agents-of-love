@@ -29,7 +29,7 @@ class ChatResponse(BaseModel):
 @app.get("/token/{token_id}", response_model=NFTMetadata)
 async def get_token_metadata(token_id: int):
     """Get metadata for a specific token ID."""
-    metadata = token_registry.get_nft_metadata(token_id)
+    metadata = await token_registry.get_nft_metadata(token_id)
     if not metadata:
         raise HTTPException(status_code=404, detail="Token not found")
     return metadata

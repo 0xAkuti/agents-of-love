@@ -2,6 +2,7 @@ import json
 import pathlib
 from typing import Dict, Optional
 from pydantic import BaseModel
+from src.storage.manager import StorageManager
 
 class TokenMetadata(BaseModel):
     token_id: int
@@ -22,28 +23,30 @@ class NFTMetadata(BaseModel):
 
 class TokenRegistry:
     def __init__(self):
-        self.registry_file = pathlib.Path("states/token_registry.json")
         self.registry: Dict[int, TokenMetadata] = {}
+        self.storage = StorageManager()
         self.current_token_id = 0
-        self._load_registry()
     
-    def _load_registry(self):
+    async def initialize(self):
+        await self._load_registry()
+    
+    async def _load_registry(self):
         """Load the registry from file if it exists."""
-        if self.registry_file.exists():
-            data = json.loads(self.registry_file.read_text())
-            self.registry = {int(k): TokenMetadata(**v) for k, v in data["registry"].items()}
-            self.current_token_id = data["current_token_id"]
+        data = await self.storage.load_token_registry()
+        if data is None:
+            return
+        self.registry = {int(k): TokenMetadata(**v) for k, v in data["registry"].items()}
+        self.current_token_id = data["current_token_id"]
     
-    def save_registry(self):
+    async def save_registry(self):
         """Save the registry to file."""
-        self.registry_file.parent.mkdir(exist_ok=True)
         data = {
             "registry": {str(k): v.model_dump() for k, v in self.registry.items()},
             "current_token_id": self.current_token_id
         }
-        self.registry_file.write_text(json.dumps(data, indent=2))
+        await self.storage.save_token_registry(data)
     
-    def register_token(self, image_url: str, prompt: str, participants: list[str]) -> TokenMetadata:
+    async def register_token(self, image_url: str, prompt: str, participants: list[str]) -> TokenMetadata:
         """Register a new token and return its metadata."""
         token_id = self.current_token_id
         self.current_token_id += 1
@@ -56,18 +59,18 @@ class TokenRegistry:
         )
         
         self.registry[token_id] = metadata
-        self.save_registry()
+        await self.save_registry()
         return metadata
     
     def get_token_metadata(self, token_id: int) -> Optional[TokenMetadata]:
         """Get metadata for a specific token ID."""
         return self.registry.get(token_id) 
     
-    def get_nft_metadata(self, token_id: int) -> Optional[NFTMetadata]:
+    async def get_nft_metadata(self, token_id: int) -> Optional[NFTMetadata]:
         """Get metadata for a specific token ID."""
         token = self.registry.get(token_id) 
         if token is None:
-            self._load_registry()
+            await self._load_registry()
             token = self.registry.get(token_id) 
             if token is None:
                 return None

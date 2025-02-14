@@ -17,6 +17,7 @@ from src.tools.leonardo_image import LeonardoImageTool, LeonardoRequest
 from src.agents.prompt_generator import PromptGenerator
 from src.server.token_registry import TokenRegistry
 from src.models.user_agent import UserAgentWithWallet
+from src.storage.manager import StorageManager
 
 dotenv.load_dotenv()
 
@@ -43,11 +44,8 @@ class DateManager:
         # Load available participants
         self.available_participants = self._load_available_participants()
         
-        if user:
-            print(f"Loading user avatar for {user.name} ({user.id})")
-            self.user_agent = UserAgentWithWallet.load_or_create(user)
-        else:
-            raise ValueError("User is required for now")
+        self.user_agent = None  # Will be initialized in initialize()
+        self.manager_agent = None  # Will be initialized in initialize()
             
         # Create memory for storing user profile
         self.memory = ListMemory()
@@ -55,22 +53,35 @@ class DateManager:
         self.token_registry = TokenRegistry()
         self.image_tool = LeonardoImageTool()
         
-        self.manager_agent = AgentWithWallet.from_json(
-            path=pathlib.Path("agents/date_manager.json"),
-            system_message=self.manager_template,
-            tools=[self.image_tool, 
-                   self.create_user_avatar, 
-                   self.list_available_participants, 
-                   self.run_date_simulation, 
-                   self.get_user_avatar_wallet, 
-                   self.get_user_avatar_balance,
-                   self.mint_date_nft],
-            reflect_on_tool_use=True,
-            memory=[self.memory]
-        )
-
         self.simulator: Optional[DateSimulator] = None
         self.date_started_callback: Optional[Callable[[], None]] = None
+        self.storage_manager = StorageManager()
+    
+    async def initialize(self):
+        """Initialize the date manager with user agent and manager agent."""
+        await self.token_registry.initialize()
+        
+        if self.user:
+            print(f"Loading user avatar for {self.user.name} ({self.user.id})")
+            self.user_agent = await UserAgentWithWallet.load_or_create(self.user)
+            await self.user_agent.initialize()
+            
+            self.manager_agent = await AgentWithWallet.from_json(
+                path=pathlib.Path("agents/date_manager.json"),
+                system_message=self.manager_template,
+                tools=[self.image_tool, 
+                       self.create_user_avatar, 
+                       self.list_available_participants, 
+                       self.run_date_simulation, 
+                       self.get_user_avatar_wallet, 
+                       self.get_user_avatar_balance,
+                       self.mint_date_nft],
+                reflect_on_tool_use=True,
+                memory=[self.memory]
+            )
+            await self.init_memory()
+        else:
+            raise ValueError("User is required for now")
     
     def _get_state_path(self) -> pathlib.Path:
         """Get the path to the state file for the current user."""
@@ -101,9 +112,7 @@ class DateManager:
         }
         
         # Save to file
-        state_path = self._get_state_path()
-        with open(state_path, "w") as f:
-            json.dump(state, f)
+        await self.storage_manager.save_agent_state(self.user.id, state)
             
     async def _load_state(self) -> bool:
         """Load the previous state if it exists and returns whether it was loaded successfully."""
@@ -113,20 +122,9 @@ class DateManager:
             
         try:
             # Read the file content first
-            with open(state_path, "r", encoding='utf-8') as f:
-                file_content = f.read()
-                
-            try:
-                state = json.loads(file_content)
-            except json.JSONDecodeError as e:
-                # If JSON is invalid, log the error and save the problematic file
-                error_path = state_path.with_suffix('.error')
-                with open(error_path, 'w', encoding='utf-8') as f:
-                    f.write(file_content)
-                print(f"Error parsing state file: {e}")
-                print(f"Saved problematic state to: {error_path}")
-                # Delete the corrupted state file
-                state_path.unlink()
+            state = await self.storage_manager.load_agent_state(self.user.id)
+            if state is None:
+                logging.warning(f"No state found for user {self.user.id}")
                 return False
                 
             # Load manager state
@@ -168,7 +166,7 @@ class DateManager:
         if await self._load_state():
             return
             
-        if self.user_agent.agent_data.user_profile:
+        if self.user_agent and self.user_agent.agent_data.user_profile:
             # Create the profile JSON
             profile_json = json.dumps(self.user_agent.agent_data.user_profile.model_dump(), indent=2)
             
@@ -183,19 +181,22 @@ class DateManager:
                         mime_type=MemoryMimeType.JSON
                     )
                 )
+                await self._save_state()
     
     def _load_available_participants(self) -> Dict[str, Agent]:
         """Load all available participant agents from the agents folder."""
         participants = {}
         agents_path = pathlib.Path("agents")
         for file in agents_path.glob("*.json"):
-            agent = Agent.load(file)
+            if file.name == "template.json":
+                continue
+            agent = Agent.load_from_file(file)
             if agent.role == AgentRole.PARTICIPANT:
                 participants[agent.name] = agent
         return participants
     
     async def get_user_avatar_wallet(self) -> str:
-        """Get the wallt address of the users avatar."""
+        """Get the wallet address of the user's avatar."""
         if self.user_agent is None:
             return "User avatar not found"
         return self.user_agent.get_address()
@@ -250,11 +251,11 @@ class DateManager:
         self.simulator.set_date_organizer(self.organizer_template, self.manager_agent.get_address())
         
         # Add the participants
-        #self.simulator.add_participant(self.user_profile.name, user_prompt)
-        #self.simulator.add_participant(match_name, match_prompt)
+        #await self.simulator.add_participant(self.user_profile.name, user_prompt)
+        #await self.simulator.add_participant(match_name, match_prompt)
         
         self.simulator.participants[self.user_agent.name] = self.user_agent
-        self.simulator.add_participant_from_agent(match_agent)
+        await self.simulator.add_participant_from_agent(match_agent)
         
         # Set the summarizer from template
         self.simulator.set_summarizer(self.summarizer_template)
@@ -279,8 +280,10 @@ class DateManager:
         And deploy their account if using starknet and not deployed yet."""
         if self.user_agent is None:
             raise ValueError("User avatar not found")
-        path = UserAgentWithWallet.get_user_agent_path(self.user.id)
-        user_agent = Agent.load(path)
+        user_agent_data = await self.storage_manager.load_user_agent(self.user.id)
+        if user_agent_data is None:
+            raise ValueError("User avatar not found")
+        user_agent = Agent.model_validate(user_agent_data)        
         user_agent.name = name
         if user_agent.user_profile is None:
             user_agent.user_profile = UserProfile(name=name, interests=interests, personality_traits=personality_traits, conversation_style=conversation_style, dislikes=dislikes, areas_of_expertise_and_knowledge=areas_of_expertise_and_knowledge, passionate_topics=passionate_topics)
@@ -292,7 +295,7 @@ class DateManager:
             user_agent.user_profile.areas_of_expertise_and_knowledge = areas_of_expertise_and_knowledge
             user_agent.user_profile.passionate_topics = passionate_topics
             user_agent.user_profile.appearance = user_appearance
-        user_agent.save(path)
+        await self.storage_manager.save_user_agent(self.user.id, user_agent.model_dump(mode="json"))
         
         if self.user_agent.wallet_provider == WalletProvider.STARKNET:
             funder_seed = self.manager_agent.wallet_data.seed
@@ -355,7 +358,7 @@ class DateManager:
         # return f"Image taken during the date: {prompt}\nImage: {image_url}"
         
         # Register the token
-        metadata = self.token_registry.register_token(
+        metadata = await self.token_registry.register_token(
             image_url=image_url,
             prompt=prompt,
             participants=participants
@@ -391,7 +394,7 @@ class DateManager:
 
 async def main():
     manager = DateManager()
-    await manager.init_memory()
+    await manager.initialize()
     await manager.start_conversation()
 
 if __name__ == "__main__":

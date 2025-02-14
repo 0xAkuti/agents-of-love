@@ -17,6 +17,7 @@ from src.tools.cdp_landchain_adapter import CDPLangChainToolAdapter
 import enum
 
 from src.tools.starknet_toolkit import StarknetToolkit
+from src.storage.manager import StorageManager
 
 class WalletProvider(enum.Enum):
     CDP = "cdp"
@@ -26,8 +27,6 @@ class WalletProvider(enum.Enum):
 dotenv.load_dotenv(override=True)
 
 class AgentWithWallet(AssistantAgent):
-    _wallet_store = WalletStore()
-
     def __init__(self, name: str, system_message: str, model_client: ChatCompletionClient, agent_id: str | uuid.UUID | None = None, agent_role: AgentRole = AgentRole.ASSISTANT, wallet_provider: WalletProvider = WalletProvider.CDP, **kwargs):
         if agent_id is None:
             # Create deterministic UUID based on hash of name and system message
@@ -37,7 +36,8 @@ class AgentWithWallet(AssistantAgent):
         elif isinstance(agent_id, str):
             self.agent_id = uuid.UUID(agent_id)
         else:
-            self.agent_id = agent_id#
+            self.agent_id = agent_id
+            
         self.agent_role = agent_role
         self.network_id = os.environ.get("NETWORK_ID", "base-sepolia")
         if "starknet" in self.network_id:
@@ -46,32 +46,43 @@ class AgentWithWallet(AssistantAgent):
         else:
             self.wallet_provider = WalletProvider.CDP
             print('USING CDP')
-        self.wallet_data = self._wallet_store.load_wallet(str(self.agent_id))
-        # self.wallet_provider = wallet_provider
+        
+        self.storage_manager = StorageManager()
+        self.wallet_store = WalletStore()
+        
+        # Load wallet data synchronously for initialization
+        self.wallet_data = self.wallet_store.load_wallet_sync(str(self.agent_id))
+        
+        # Initialize CDP agentkit
         self.cdp_agentkit = CdpAgentkitWrapper(
             network_id="base-sepolia",
             cdp_wallet_data=json.dumps(self.wallet_data.to_dict()) if self.wallet_data else None
         )
+        
+        # Initialize tools list
+        tools = kwargs.pop("tools", [])
+        
+        # Initialize appropriate toolkit and tools
         if self.wallet_provider == WalletProvider.CDP:
             self.cdp_toolkit = CdpToolkit.from_cdp_agentkit_wrapper(self.cdp_agentkit)
-            tools = [CDPLangChainToolAdapter(tool) for tool in self.cdp_toolkit.get_tools()]
+            wallet_tools = [CDPLangChainToolAdapter(tool) for tool in self.cdp_toolkit.get_tools()]
             limited_tools = []
             transfer_tool = None
-            for tool in tools:
+            for tool in wallet_tools:
                 if tool.name == 'transfer':
                     transfer_tool = tool
                 elif tool.name in ["get_balance", "get_wallet_details"]:
                     limited_tools.append(tool)
-            tools = limited_tools
-            def transfer_usdc(amount: str, destination: str):
-                """Transfers amount of USDC to a given wallet address in hexadecimal format"""
-                return transfer_tool._langchain_tool({"amount": amount, "asset_id": "usdc", "destination": destination})
-            tools.append(transfer_usdc)
-        elif self.wallet_provider == WalletProvider.STARKNET:
+            tools.extend(limited_tools)
+            if transfer_tool:
+                def transfer_usdc(amount: str, destination: str):
+                    """Transfers amount of USDC to a given wallet address in hexadecimal format"""
+                    return transfer_tool._langchain_tool({"amount": amount, "asset_id": "usdc", "destination": destination})
+                tools.append(transfer_usdc)
+        elif self.wallet_provider == WalletProvider.STARKNET and self.wallet_data:
             self.starknet_toolkit = StarknetToolkit(self.wallet_data.seed)
-            tools = self.starknet_toolkit.get_tools()
-
-        tools.extend(kwargs.pop("tools", []))
+            tools.extend(self.starknet_toolkit.get_tools())
+        
         super().__init__(
             name=name,
             system_message=system_message,
@@ -79,10 +90,26 @@ class AgentWithWallet(AssistantAgent):
             tools=tools,
             **kwargs
         )
-        self._save_agent(name, system_message)
-        if self.wallet_data is None:
-            self._wallet_store.save_wallet(str(self.agent_id), self.cdp_agentkit.wallet)
-        logging.info(f"Agent {name!r} with ID {self.agent_id} created, wallet: {self.cdp_agentkit.wallet.default_address.address_id}")
+        
+    async def initialize(self):
+        """Initialize remaining async operations"""
+        # Save wallet if it doesn't exist
+        if self.wallet_data is None and self.cdp_agentkit.wallet:
+            await self.wallet_store.save_wallet(str(self.agent_id), self.cdp_agentkit.wallet)
+            logging.info(f"Agent {self.name!r} with ID {self.agent_id} created, wallet: {self.cdp_agentkit.wallet.default_address.address_id}")
+        
+        agent = Agent(
+            id=self.agent_id,
+            name=self._name,
+            model_provider=ModelProvider(
+                provider="openai",
+                model="gpt-4o-mini"
+            ),
+            role=self.agent_role,
+            system_prompt=self._system_messages[0].content
+        )
+        
+        await self.storage_manager.save_user_agent(self.agent_id, agent.model_dump(mode="json"))
         
     def _save_agent(self, name: str, system_message: str):
         for agent_file in pathlib.Path(".").glob("agents/**/*.json"):
@@ -102,7 +129,7 @@ class AgentWithWallet(AssistantAgent):
         return True
 
     @classmethod
-    def from_agent(cls, agent: Agent, **kwargs):
+    async def from_agent(cls, agent: Agent, **kwargs):
         if agent.model_provider.provider == "openai":
             model_client = OpenAIChatCompletionClient(
                 model=agent.model_provider.model,
@@ -116,27 +143,29 @@ class AgentWithWallet(AssistantAgent):
         model_client = kwargs.pop("model_client", model_client)
         agent_id = kwargs.pop("agent_id", agent.id)
         
-        return cls(
+        instance = cls(
             name=name,
             system_message=system_message,
             model_client=model_client,
             agent_id=agent_id,
             **kwargs
         )
+        await instance.initialize()
+        return instance
     
     @classmethod
-    def from_json(cls, path: str, **kwargs):
+    async def from_json(cls, path: str, **kwargs):
         with open(path, "r") as f:
             agent = Agent.model_validate_json(f.read())
-        return cls.from_agent(agent, **kwargs)
+        return await cls.from_agent(agent, **kwargs)
 
     def get_wallet(self):
-        return self.cdp_agentkit.wallet
+        return self.cdp_agentkit.wallet if self.cdp_agentkit else None
     
     def get_address(self) -> str:
         if self.wallet_provider == WalletProvider.CDP:
-            return self.cdp_agentkit.wallet.default_address.address_id
+            return self.cdp_agentkit.wallet.default_address.address_id if self.cdp_agentkit else None
         elif self.wallet_provider == WalletProvider.STARKNET:
-            return self.starknet_toolkit.get_address()
+            return self.starknet_toolkit.get_address() if self.starknet_toolkit else None
         else:
             raise ValueError(f"Unsupported wallet provider: {self.wallet_provider}")

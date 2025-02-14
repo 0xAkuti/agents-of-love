@@ -39,14 +39,16 @@ class DateSimulator:
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
     
-    def add_participant_from_agent(self, agent: Agent) -> AgentWithWallet:
+    async def add_participant_from_agent(self, agent: Agent) -> AgentWithWallet:
         """Add a new participant to the date simulation."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
         
-        self.participants[agent.name] = AgentWithWallet.from_agent(agent, model_client=self.model_client)
+        self.participants[agent.name] = await AgentWithWallet.from_agent(agent, model_client=self.model_client)
+        await self.participants[agent.name].initialize()
+        return self.participants[agent.name]
     
-    def add_participant(self, name: str, system_message: str) -> AgentWithWallet:
+    async def add_participant(self, name: str, system_message: str) -> AgentWithWallet:
         """Add a new participant to the date simulation."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
@@ -58,6 +60,7 @@ class DateSimulator:
             reflect_on_tool_use=True
         )
         self.participants[name] = agent
+        await agent.initialize()
         return agent
         
     def set_date_organizer(self, system_message: Optional[str] = None, wallet_address: Optional[str] = None):
