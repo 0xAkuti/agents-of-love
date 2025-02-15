@@ -37,13 +37,16 @@ We have created an virtual dating experience where users can 'clone' themselves 
 
 
 ## How It's Made
+- Custom Starknet Tools for Autogen - Implemented custom tools for Starknet to be used in Autogen using starknet-py to allow agents to autonomously deploy accounts, transfer tokens, mint NFTs, and check balances depending on their permissions.
 - Coinbase Agent Kit – Each user avatar and AI character is equipped with a CDP wallet for payment
 - Multi-Agent System: The system runs on Autogen, coordinating multiple AI agents:
   - Three AI Assistants (Date Manager, Date Organizer, Conversation Selector) handle date logistics. We used prompts to define their roles.
   - Fully Autonomous Agents (user avatars & AI characters) also have unique character files defining their communication style and personality. We used prompts for dating guideline.
 - Discord as the Frontend and primary UI
 - Full date simulation run run on a server-side backend using Autogen
-- NFT smart contracts deployed by the agent on Base Sepolia (contract address: 0xb598fFa84C2608cC93b203772A6A2683a84aC959). NFT date memories minted by the agent, viewable on OpenSea (https://testnets.opensea.io/collection/date-memories).
+- NFT smart contracts deployed by the agent:
+  - on Base Sepolia (contract address: 0xb598fFa84C2608cC93b203772A6A2683a84aC959). NFT date memories minted by the agent, viewable on OpenSea (https://testnets.opensea.io/collection/date-memories).
+  - on Starknet Mainnet (contract address: 0x07881ce471fad37b0344100cf86efdccce1c93dafc15c52c1c3114da5193419e). NFT date memories minted by the agent, viewable on Element (https://element.market/assets/starknet/0x07881ce471fad37b0344100cf86efdccce1c93dafc15c52c1c3114da5193419e).
 
 ### Technical Stack
 - Autogen multi-agent framework 
@@ -65,7 +68,6 @@ We have created an virtual dating experience where users can 'clone' themselves 
 - Discord API token
 - CDP API credentials
 - Leonardo AI API key
-- Base Sepolia network access
 
 ### Environment Variables
 ```bash
