@@ -16,7 +16,8 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from src.models.agent_with_wallet import AgentWithWallet
 from src.models.model import Agent
-
+from src.storage.manager import StorageManager
+import time
 
 dotenv.load_dotenv()
 
@@ -31,7 +32,8 @@ class DateSimulator:
         self.model_client: Optional[OpenAIChatCompletionClient] = None
         self.scene_instruction: str = "Date Organizer, please set the scene and start the date."
         self.is_running: bool = False
-        
+        self.storage = StorageManager()
+
     def initialize_model_client(self):
         """Initialize the OpenAI model client."""
         self.model_client = OpenAIChatCompletionClient(
@@ -159,17 +161,15 @@ class DateSimulator:
 
     def save_conversation(self, result: TaskResult, summary: str):
         # Get next conversation number
-        i = 1
-        base_path = pathlib.Path("./conversations")
-        while any(f.name.startswith(f"{i}_") for f in base_path.glob("*.md")):
-            i += 1
-            
-        # save chat and summary as markdown
-        with open(base_path / f"{i}_{'_'.join(self.participants.keys())}.md", "w") as f:
-            f.write(f"# Conversation between {'_'.join(self.participants.keys())}\n")
-            f.write(self._format_conversation_history_with_tool_calls(result.messages))
-            f.write("\n# Summary\n")
-            f.write(summary)
+        conversation_id = int(time.time())
+        content = []
+        conversation = self._format_conversation_history_with_tool_calls(result.messages)
+        content.append(f"# Conversation between {'_'.join(self.participants.keys())}\n")
+        content.append(conversation)
+        content.append(f"\n# Summary\n")
+        content.append(summary)
+        self.storage.save_conversation(conversation_id, self.participants.keys(), content)
+
 
 async def main(args: argparse.Namespace):
     simulator = DateSimulator()
