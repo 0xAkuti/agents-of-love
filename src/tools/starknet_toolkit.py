@@ -157,7 +157,7 @@ async def mint_date_memory(seed: int, recipient: int, token_id: int):
 
 
 # Input/Output models for the tools
-class TransferUSDCInput(BaseModel):
+class TransferTokenInput(BaseModel):
     recipient_address: str = Field(..., description="Recipient's StarkNet address")
     amount: float = Field(..., description="Amount of USDC to transfer")
 
@@ -193,19 +193,45 @@ class GetUSDCBalanceTool(BaseTool[EmptyInput, str]):
 
     async def run(self, args: EmptyInput, cancellation_token: CancellationToken) -> str:
         return await self.toolkit.get_usdc_balance()
-
-class TransferUSDCTool(BaseTool[TransferUSDCInput, str]):
+    
+class GetSTRKBalanceTool(BaseTool[EmptyInput, str]):
     def __init__(self, toolkit: 'StarknetToolkit'):
         super().__init__(
-            name="transfer_usdc",
-            description="Transfer USDC to a recipient",
-            args_type=TransferUSDCInput,
+            name="get_strk_balance",
+            description="Get STRK balance for the account",
+            args_type=EmptyInput,
             return_type=str
         )
         self.toolkit = toolkit
 
-    async def run(self, args: TransferUSDCInput, cancellation_token: CancellationToken) -> str:
+    async def run(self, args: EmptyInput, cancellation_token: CancellationToken) -> str:
+        return await self.toolkit.get_strk_balance()
+
+class TransferUSDCTool(BaseTool[TransferTokenInput, str]):
+    def __init__(self, toolkit: 'StarknetToolkit'):
+        super().__init__(
+            name="transfer_usdc",
+            description="Transfer USDC to a recipient",
+            args_type=TransferTokenInput,
+            return_type=str
+        )
+        self.toolkit = toolkit
+
+    async def run(self, args: TransferTokenInput, cancellation_token: CancellationToken) -> str:
         return await self.toolkit.transfer_usdc(args.recipient_address, args.amount)
+
+class TransferSTRKTool(BaseTool[TransferTokenInput, str]):
+    def __init__(self, toolkit: 'StarknetToolkit'):
+        super().__init__(
+            name="transfer_strk",
+            description="Transfer STRK to a recipient",
+            args_type=TransferTokenInput,
+            return_type=str
+        )
+        self.toolkit = toolkit
+
+    async def run(self, args: TransferTokenInput, cancellation_token: CancellationToken) -> str:
+        return await self.toolkit.transfer_strk(args.recipient_address, args.amount)
 
 class MintNFTTool(BaseTool[NFTMintInput, str]):
     def __init__(self, toolkit: 'StarknetToolkit'):
@@ -319,8 +345,10 @@ class StarknetToolkit:
         """Get list of AutoGen tools"""
         tools = [
             GetWalletTool(self),
-            GetUSDCBalanceTool(self),
-            TransferUSDCTool(self)
+            # GetUSDCBalanceTool(self),
+            GetSTRKBalanceTool(self),
+            # TransferUSDCTool(self),
+            TransferSTRKTool(self)
         ]
         if include_mint_nft:
             tools.append(MintNFTTool(self))
