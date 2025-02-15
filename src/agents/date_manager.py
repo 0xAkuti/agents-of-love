@@ -44,8 +44,8 @@ class DateManager:
         # Load available participants
         self.available_participants = self._load_available_participants()
         
-        self.user_agent = None  # Will be initialized in initialize()
-        self.manager_agent = None  # Will be initialized in initialize()
+        self.user_agent: Optional[UserAgentWithWallet] = None  # Will be initialized in initialize()
+        self.manager_agent: Optional[AgentWithWallet] = None  # Will be initialized in initialize()
             
         # Create memory for storing user profile
         self.memory = ListMemory()

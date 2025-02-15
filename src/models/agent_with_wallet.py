@@ -83,6 +83,17 @@ class AgentWithWallet(AssistantAgent):
             self.starknet_toolkit = StarknetToolkit(self.wallet_data.seed)
             tools.extend(self.starknet_toolkit.get_tools())
         
+        self.agent_data = Agent(
+            id=self.agent_id,
+            name=name,
+            model_provider=ModelProvider(
+                provider="openai",
+                model="gpt-4o-mini"
+            ),
+            role=self.agent_role,
+            system_prompt=system_message
+        )
+        
         super().__init__(
             name=name,
             system_message=system_message,
@@ -98,18 +109,7 @@ class AgentWithWallet(AssistantAgent):
             await self.wallet_store.save_wallet(str(self.agent_id), self.cdp_agentkit.wallet)
             logging.info(f"Agent {self.name!r} with ID {self.agent_id} created, wallet: {self.cdp_agentkit.wallet.default_address.address_id}")
         
-        agent = Agent(
-            id=self.agent_id,
-            name=self._name,
-            model_provider=ModelProvider(
-                provider="openai",
-                model="gpt-4o-mini"
-            ),
-            role=self.agent_role,
-            system_prompt=self._system_messages[0].content
-        )
-        
-        await self.storage_manager.save_user_agent(self.agent_id, agent.model_dump(mode="json"))
+        await self.storage_manager.save_user_agent(self.agent_id, self.agent_data.model_dump(mode="json"))
         
     def _save_agent(self, name: str, system_message: str):
         for agent_file in pathlib.Path(".").glob("agents/**/*.json"):
