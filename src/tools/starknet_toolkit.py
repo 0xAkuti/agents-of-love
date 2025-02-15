@@ -265,7 +265,7 @@ class StarknetToolkit:
         tx = await mint_date_memory(self._seed, int(recipient, 16), token_id)        
         tx_hash = hex(tx.hash)
         explorer_link = f"{self.explorer_url}/tx/{tx_hash}"
-        marketplace_link = f"https://starknet-sepolia.openmark.io/collection/{DATE_MEMORIES}:{token_id}"
+        marketplace_link = f"https://starknet-sepolia.openmark.io/nft/{hex(DATE_MEMORIES)}:{token_id}"
         
         return (
             f"Minted NFT with token ID: {token_id}\n"
