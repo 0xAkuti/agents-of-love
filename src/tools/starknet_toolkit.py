@@ -130,7 +130,7 @@ async def fund_and_deploy_account(seed: int, funder_seed: int):
     deployed = await is_deployed(get_address(seed))
     if deployed:
         return get_account(seed)
-    strk_amount = 0.2 if IS_SEPOLIA else 0.5
+    strk_amount = 0.2 if IS_SEPOLIA else 10
     await transfer_strk(funder_seed, get_address(seed), strk_amount)
     if IS_SEPOLIA:
         await transfer_usdc(funder_seed, get_address(seed), 10)
