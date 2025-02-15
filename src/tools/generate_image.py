@@ -7,9 +7,6 @@ from pydantic import BaseModel, Field
 from autogen_core import Image
 from PIL import Image as PILImage
 import aiohttp
-import asyncio
-import json
-from huggingface_hub import InferenceClient
 
 
 async def from_url(url: str) -> Image:
@@ -37,7 +34,7 @@ class ImageGenerationResponse(BaseModel):
     urls: list[str] = Field(..., description="List of URLs for the generated images")
 
 class ImageGenerationTool(BaseTool[ImageGenerationRequest, ImageGenerationResponse]):
-    """A tool for generating images using OpenAI's DALL-E model or HuggingFace's FLUX model."""
+    """A tool for generating images using OpenAI's DALL-E model."""
     
     def __init__(self):
         super().__init__(
@@ -47,15 +44,11 @@ class ImageGenerationTool(BaseTool[ImageGenerationRequest, ImageGenerationRespon
             return_type=ImageGenerationResponse
         )
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
         
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
-        if not self.hf_api_key:
-            raise ValueError("HUGGINGFACE_API_KEY environment variable is not set")
             
         self.openai_client = AsyncOpenAI(api_key=self.openai_api_key)
-        self.hf_client = InferenceClient(token=self.hf_api_key)
         
     async def generate_with_dalle(self, args: ImageGenerationRequest) -> ImageGenerationResponse:
         """Generate images using DALL-E model"""
@@ -71,15 +64,6 @@ class ImageGenerationTool(BaseTool[ImageGenerationRequest, ImageGenerationRespon
         images = [image.b64_json for image in response.data]
         return ImageGenerationResponse(urls=images)
         
-    async def generate_with_flux(self, args: ImageGenerationRequest) -> ImageGenerationResponse:
-        """Generate images using FLUX model"""
-        response = await asyncio.to_thread(
-            self.hf_client.post,
-            model="black-forest-labs/FLUX.1-schnell",
-            json={"inputs": args.prompt}
-        )
-        return ImageGenerationResponse(urls=[response])
-        
     async def run(self, args: ImageGenerationRequest, cancellation_token: CancellationToken) -> ImageGenerationResponse:
         """
         Generate an image based on the provided request.
@@ -94,8 +78,6 @@ class ImageGenerationTool(BaseTool[ImageGenerationRequest, ImageGenerationRespon
         try:
             if args.model == "dall-e-3":
                 return await self.generate_with_dalle(args)
-            else:  # flux
-                return await self.generate_with_flux(args)
                 
         except Exception as e:
             raise RuntimeError(f"Error generating image: {str(e)}")

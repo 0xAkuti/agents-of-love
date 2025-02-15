@@ -1,23 +1,24 @@
 import asyncio
 import logging
-from typing import Callable, List, Optional, Dict, Any
+from typing import Callable, List, Optional, Dict
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from date_simulator import DateSimulator
-from src.model import Agent, AgentRole, UserProfile, SimpleUser
-from src.agent_with_wallet import AgentWithWallet
 import os
 import pathlib
 import dotenv
-import discord
 import json
-from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
-from src.leonardo_image import LeonardoImageTool, LeonardoRequest
-from src.prompt_generator import PromptGenerator
-from src.token_registry import TokenRegistry
 
-from src.user_agent import UserAgentWithWallet
+from src.models.model import Agent, AgentRole, UserProfile, SimpleUser
+from src.models.agent_with_wallet import AgentWithWallet, WalletProvider
+from src.tools.date_simulator import DateSimulator
+from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
+from src.tools.leonardo_image import LeonardoImageTool, LeonardoRequest
+from src.agents.prompt_generator import PromptGenerator
+from src.server.token_registry import TokenRegistry
+from src.models.user_agent import UserAgentWithWallet
+from src.storage.manager import StorageManager
+
 dotenv.load_dotenv()
 
 
@@ -43,11 +44,8 @@ class DateManager:
         # Load available participants
         self.available_participants = self._load_available_participants()
         
-        if user:
-            print(f"Loading user avatar for {user.name} ({user.id})")
-            self.user_agent = UserAgentWithWallet.load_or_create(user)
-        else:
-            raise ValueError("User is required for now")
+        self.user_agent: Optional[UserAgentWithWallet] = None  # Will be initialized in initialize()
+        self.manager_agent: Optional[AgentWithWallet] = None  # Will be initialized in initialize()
             
         # Create memory for storing user profile
         self.memory = ListMemory()
@@ -55,16 +53,41 @@ class DateManager:
         self.token_registry = TokenRegistry()
         self.image_tool = LeonardoImageTool()
         
-        self.manager_agent = AgentWithWallet.from_json(
-            path=pathlib.Path("agents/date_manager.json"),
-            system_message=self.manager_template,
-            tools=[self.image_tool, self.create_user_avatar, self.list_available_participants, self.run_date_simulation, self.get_user_avatar_wallet, self.get_user_avatar_balance],
-            reflect_on_tool_use=True,
-            memory=[self.memory]
-        )
-
         self.simulator: Optional[DateSimulator] = None
         self.date_started_callback: Optional[Callable[[], None]] = None
+        self.storage_manager = StorageManager()
+    
+    async def initialize(self):
+        """Initialize the date manager with user agent and manager agent."""
+        logging.info("Initializing date manager...")
+        await self.token_registry.initialize()
+        
+        if self.user:
+            logging.info(f"Loading user avatar for {self.user.name} ({self.user.id})")
+            self.user_agent = await UserAgentWithWallet.load_or_create(self.user)
+            logging.info("Created user agent, initializing...")
+            await self.user_agent.initialize()
+            logging.info("User agent initialized")
+            
+            logging.info("Creating manager agent...")
+            self.manager_agent = await AgentWithWallet.from_json(
+                path=pathlib.Path("agents/date_manager.json"),
+                system_message=self.manager_template,
+                tools=[self.image_tool, 
+                       self.create_user_avatar, 
+                       self.list_available_participants, 
+                       self.run_date_simulation, 
+                       self.get_user_avatar_wallet, 
+                       self.get_user_avatar_balance,
+                       self.mint_date_nft],
+                reflect_on_tool_use=True,
+                memory=[self.memory]
+            )
+            logging.info("Manager agent created, initializing memory...")
+            await self.init_memory()
+            logging.info("Date manager initialization complete")
+        else:
+            raise ValueError("User is required for now")
     
     def _get_state_path(self) -> pathlib.Path:
         """Get the path to the state file for the current user."""
@@ -95,32 +118,15 @@ class DateManager:
         }
         
         # Save to file
-        state_path = self._get_state_path()
-        with open(state_path, "w") as f:
-            json.dump(state, f)
+        await self.storage_manager.save_agent_state(self.user.id, state)
             
     async def _load_state(self) -> bool:
         """Load the previous state if it exists and returns whether it was loaded successfully."""
-        state_path = self._get_state_path()
-        if not state_path.exists():
-            return False
-            
         try:
             # Read the file content first
-            with open(state_path, "r", encoding='utf-8') as f:
-                file_content = f.read()
-                
-            try:
-                state = json.loads(file_content)
-            except json.JSONDecodeError as e:
-                # If JSON is invalid, log the error and save the problematic file
-                error_path = state_path.with_suffix('.error')
-                with open(error_path, 'w', encoding='utf-8') as f:
-                    f.write(file_content)
-                print(f"Error parsing state file: {e}")
-                print(f"Saved problematic state to: {error_path}")
-                # Delete the corrupted state file
-                state_path.unlink()
+            state = await self.storage_manager.load_agent_state(self.user.id)
+            if state is None:
+                logging.warning(f"No state found for user {self.user.id}")
                 return False
                 
             # Load manager state
@@ -159,10 +165,14 @@ class DateManager:
     
     async def init_memory(self):
         """Initialize the date manager."""
+        print("Initializing memory...")
+        logging.info("Initializing memory...")
         if await self._load_state():
+            print("Loaded state")
+            logging.info("Loaded state")
             return
             
-        if self.user_agent.agent_data.user_profile:
+        if self.user_agent and self.user_agent.agent_data.user_profile:
             # Create the profile JSON
             profile_json = json.dumps(self.user_agent.agent_data.user_profile.model_dump(), indent=2)
             
@@ -177,22 +187,25 @@ class DateManager:
                         mime_type=MemoryMimeType.JSON
                     )
                 )
+                await self._save_state()
     
     def _load_available_participants(self) -> Dict[str, Agent]:
         """Load all available participant agents from the agents folder."""
         participants = {}
         agents_path = pathlib.Path("agents")
         for file in agents_path.glob("*.json"):
-            agent = Agent.load(file)
+            if file.name == "template.json":
+                continue
+            agent = Agent.load_from_file(file)
             if agent.role == AgentRole.PARTICIPANT:
                 participants[agent.name] = agent
         return participants
     
     async def get_user_avatar_wallet(self) -> str:
-        """Get the wallt address of the users avatar."""
+        """Get the wallet address of the user's avatar."""
         if self.user_agent is None:
             return "User avatar not found"
-        return self.user_agent.cdp_agentkit.wallet.default_address.address_id
+        return self.user_agent.get_address()
     
     async def get_user_avatar_balance(self, asset_id: str) -> str:
         """Get balance for all addresses in the wallet of the users avatar for a given asset.
@@ -206,9 +219,12 @@ class DateManager:
         """
         if self.user_agent is None:
             return "User avatar not found"
-        for tool in self.user_agent.cdp_toolkit.get_tools():
-            if tool.name == "get_balance":
-                return await tool.arun({"asset_id": asset_id})
+        if self.user_agent.wallet_provider == WalletProvider.CDP:
+            for tool in self.user_agent.cdp_toolkit.get_tools():
+                if tool.name == "get_balance":
+                    return await tool.arun({"asset_id": asset_id})
+        elif self.user_agent.wallet_provider == WalletProvider.STARKNET:
+            return await self.user_agent.starknet_toolkit.get_usdc_balance()
         return "No balance tool found"
         
     async def list_available_participants(self) -> str:
@@ -218,7 +234,7 @@ class DateManager:
         
         available_participants = [f"{p.name}: {p.system_prompt}" for p in self.available_participants.values()]
                 
-        return "Available participants for dating:\n" + "\n".join(available_participants)
+        return "Available participants for dating:\n" + "\n".join(available_participants) + "\n When referring to a participant description refer to them in third person."
         
     async def run_date_simulation(self,  match_name: str, scene_instruction: Optional[str] = None) -> str:
         """Run a date simulation with the specified match.
@@ -238,27 +254,27 @@ class DateManager:
         self.simulator.initialize_model_client()
         
         # Create date organizer from template
-        self.simulator.set_date_organizer(self.organizer_template, self.manager_agent.cdp_agentkit.wallet.default_address.address_id)
+        self.simulator.set_date_organizer(self.organizer_template, self.manager_agent.get_address())
         
         # Add the participants
-        #self.simulator.add_participant(self.user_profile.name, user_prompt)
-        #self.simulator.add_participant(match_name, match_prompt)
+        #await self.simulator.add_participant(self.user_profile.name, user_prompt)
+        #await self.simulator.add_participant(match_name, match_prompt)
         
         self.simulator.participants[self.user_agent.name] = self.user_agent
-        self.simulator.add_participant_from_agent(match_agent)
+        await self.simulator.add_participant_from_agent(match_agent)
         
         # Set the summarizer from template
         self.simulator.set_summarizer(self.summarizer_template)
         
         # Run the simulation
         result = await self.simulator.simulate_date(scene_instruction)
-        conversation = self.simulator._format_conversation_history(result.messages)
+        conversation = self.simulator._format_conversation_history_with_tool_calls(result.messages)
         summary = await self.simulator.summarize_date(result)
         
         # After the date, mint an NFT
         participants = [self.user_agent.name, match_name]
         try:
-            nft_result = await self.mint_date_nft(conversation, participants)
+            nft_result = await self._mint_date_nft_from_conversation(conversation, participants)
         except Exception as e:
             nft_result = f"Error minting NFT: {str(e)}"
         
@@ -266,11 +282,14 @@ class DateManager:
         return f"{conversation}\n\n{nft_result}"
         
     async def create_user_avatar(self, name: str, interests: List[str], personality_traits: List[str], conversation_style: List[str], dislikes: List[str], areas_of_expertise_and_knowledge: List[str], passionate_topics: List[str], user_appearance: List[str]):
-        """Create or update a user avatar profile from the collected data, call without any markdown formatting."""
+        """Create or update a user avatar profile from the collected data, call without any markdown formatting.
+        And deploy their account if using starknet and not deployed yet."""
         if self.user_agent is None:
             raise ValueError("User avatar not found")
-        path = UserAgentWithWallet.get_user_agent_path(self.user.id)
-        user_agent = Agent.load(path)
+        user_agent_data = await self.storage_manager.load_user_agent(self.user.id)
+        if user_agent_data is None:
+            raise ValueError("User avatar not found")
+        user_agent = Agent.model_validate(user_agent_data)        
         user_agent.name = name
         if user_agent.user_profile is None:
             user_agent.user_profile = UserProfile(name=name, interests=interests, personality_traits=personality_traits, conversation_style=conversation_style, dislikes=dislikes, areas_of_expertise_and_knowledge=areas_of_expertise_and_knowledge, passionate_topics=passionate_topics)
@@ -282,17 +301,30 @@ class DateManager:
             user_agent.user_profile.areas_of_expertise_and_knowledge = areas_of_expertise_and_knowledge
             user_agent.user_profile.passionate_topics = passionate_topics
             user_agent.user_profile.appearance = user_appearance
-        user_agent.save(path)
+        await self.storage_manager.save_user_agent(self.user.id, user_agent.model_dump(mode="json"))
+        
+        if self.user_agent.wallet_provider == WalletProvider.STARKNET:
+            funder_seed = self.manager_agent.wallet_data.seed
+            if isinstance(funder_seed, str):
+                funder_seed = int(funder_seed, 16)
+            await self.user_agent.starknet_toolkit.setup_account_if_needed(funder_seed)
+            return f"Updated profile for {user_agent.user_profile.name} and deployed account {self.user_agent.get_address()}"
 
         return f"Updated profile for {user_agent.user_profile.name}"
         
     async def get_manager_response(self, user_input: str) -> str:
         """Get a response from the manager agent."""
-        response = await self.manager_agent.on_messages(
-            [TextMessage(content=user_input, source="user")],
-            cancellation_token=CancellationToken(),
-        )
-        return response.chat_message.content
+        logging.info(f"Getting manager response for input: {user_input[:100]}...")
+        try:
+            response = await self.manager_agent.on_messages(
+                [TextMessage(content=user_input, source="user")],
+                cancellation_token=CancellationToken(),
+            )
+            logging.info("Got response from manager agent")
+            return response.chat_message.content
+        except Exception as e:
+            logging.error(f"Error getting manager response: {e}", exc_info=True)
+            return "Sorry, I encountered an error while processing your message. Please try again later."
         
     async def start_conversation(self):
         """Start the conversation with the user to collect information and run the date."""
@@ -319,12 +351,13 @@ class DateManager:
             manager_response = await self.get_manager_response(user_input)
             print(f"\nDate Manager: {manager_response}")
 
-    async def mint_date_nft(self, conversation: str, participants: list[str]) -> str:
-        """Generate an image and mint an NFT for a date."""
-        # Generate a prompt for the image
-        path = UserAgentWithWallet.get_user_agent_path(self.user.id)
-        user_agent = Agent.load(path)
-        prompt = await self.prompt_generator.generate_prompt(conversation, user_agent.user_profile)
+    async def mint_date_nft(self, prompt: str, participants: list[str]) -> str:
+        """Generate an image and mint an NFT for a date. Give a detailed prompt describing the image, setting and participants."""
+        
+        prompt = prompt.replace("Bruce", "Bruce Lee")
+        prompt = prompt.replace("Arnold", "Arnold Schwarzenegger")
+        prompt = prompt.replace("Trump", "Donald Trump")
+        prompt = prompt.replace("Tesla", "Nikola Tesla")
         
         # Generate the image using Leonardo
         image_request = LeonardoRequest(prompt=prompt)
@@ -337,30 +370,43 @@ class DateManager:
         # return f"Image taken during the date: {prompt}\nImage: {image_url}"
         
         # Register the token
-        metadata = self.token_registry.register_token(
+        metadata = await self.token_registry.register_token(
             image_url=image_url,
             prompt=prompt,
             participants=participants
         )
         logging.info(f"Token registered: {metadata}")
         # Mint the NFT using CDP toolkit
-        for tool in self.manager_agent.cdp_toolkit.get_tools():
-            if tool.name == "mint_nft":
-                result = await tool.arun({
-                    "contract_address": "0xb598fFa84C2608cC93b203772A6A2683a84aC959",
-                    "destination": await self.get_user_avatar_wallet()
-                })
-                logging.info(f"NFT minted: {result}")
-                result_msg = f"Image taken during the date: {prompt}\nImage: {image_url}\nNFT minted successfully {result}"
-                if result.startswith("Minted NFT from contract"):
-                    result_msg += f"\nOpensea: https://testnets.opensea.io/assets/base_sepolia/0xb598ffa84c2608cc93b203772a6a2683a84ac959/{metadata.token_id}"
-                return result_msg
+        if self.user_agent.wallet_provider == WalletProvider.CDP:
+            for tool in self.manager_agent.cdp_toolkit.get_tools():
+                if tool.name == "mint_nft":
+                    result = await tool.arun({
+                        "contract_address": "0xb598fFa84C2608cC93b203772A6A2683a84aC959",
+                        "destination": await self.get_user_avatar_wallet()
+                    })
+                    logging.info(f"NFT minted: {result}")
+                    result_msg = f"Image taken during the date: {prompt}\nImage: {image_url}\nNFT minted successfully {result}"
+                    if result.startswith("Minted NFT from contract"):
+                        result_msg += f"\nOpensea: https://testnets.opensea.io/assets/base_sepolia/0xb598ffa84c2608cc93b203772a6a2683a84ac959/{metadata.token_id}"
+                    return result_msg
+        elif self.user_agent.wallet_provider == WalletProvider.STARKNET:
+            result = await self.manager_agent.starknet_toolkit.mint_nft(self.user_agent.get_address(), metadata.token_id)
+            return f"Image taken during the date: {prompt}\nImage: {image_url}\nNFT minted successfully\n {result}"
         
         return f"Failed to mint NFT, but image was generated: {image_url}"
 
+    async def _mint_date_nft_from_conversation(self, conversation: str, participants: list[str]) -> str:
+        """Generate an image and mint an NFT for a date."""
+        # Generate a prompt for the image
+        path = UserAgentWithWallet.get_user_agent_path(self.user.id)
+        user_agent = Agent.load(path)
+        prompt = await self.prompt_generator.generate_prompt(conversation, user_agent.user_profile)
+        
+        return await self.mint_date_nft(prompt, participants)
+
 async def main():
     manager = DateManager()
-    await manager.init_memory()
+    await manager.initialize()
     await manager.start_conversation()
 
 if __name__ == "__main__":

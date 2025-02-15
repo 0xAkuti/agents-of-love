@@ -7,9 +7,8 @@ from typing import Dict, List
 
 import dotenv
 import discord
-from discord.ext import commands
 
-from src.model import SimpleUser
+from src.models.model import SimpleUser
 
 dotenv.load_dotenv(override=True)
 
@@ -37,7 +36,7 @@ logger.addHandler(handler)
 logger.addHandler(logging.StreamHandler())
 
 #import after initializing the logger
-from date_manager import DateManager
+from src.agents.date_manager import DateManager
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -99,7 +98,7 @@ async def get_date_manager(user: discord.User) -> DateManager:
         # Create new date manager
         date_manager = DateManager(user=SimpleUser(id=user.id, name=user.display_name))
         # Initialize memory and load previous state
-        await date_manager.init_memory()
+        await date_manager.initialize()
         date_managers[user.id] = date_manager
     return date_managers[user.id]
 
@@ -112,19 +111,33 @@ async def on_message(message: discord.Message):
         return
     if message.author.bot: # Not talking to other bots
         return
-    # Show typing indicator while processing
-    async with message.channel.typing():
-        # Get or create date manager for this user
-        date_manager = await get_date_manager(message.author)
-        date_manager.date_started_callback = lambda: asyncio.create_task(message.channel.send(f"Great, I am organizing the date for you. I'll let you know how it went in a bit."))
         
-        # Get response from date manager
-        response = await date_manager.get_manager_response(f'{message.author.display_name}: {message.content}')
-        
-        # Split response into chunks and send each chunk
-        chunks = split_message(response)
-        for chunk in chunks:
-            await message.reply(chunk)
+    try:
+        # Show typing indicator while processing
+        async with message.channel.typing():
+            logger.info("Getting date manager for user...")
+            # Get or create date manager for this user
+            date_manager = await get_date_manager(message.author)
+            logger.info("Got date manager, setting callback...")
+            
+            date_manager.date_started_callback = lambda: asyncio.create_task(
+                message.channel.send("Great, I am organizing the date for you. I'll let you know how it went in a bit.")
+            )
+            
+            logger.info("Getting manager response...")
+            # Get response from date manager
+            response = await date_manager.get_manager_response(f'{message.author.display_name}: {message.content}')
+            logger.info(f"Got response: {response[:100]}...")
+            
+            # Split response into chunks and send each chunk
+            chunks = split_message(response)
+            for chunk in chunks:
+                await message.reply(chunk, suppress_embeds=True)
+            await date_manager.save_state()
+                
+    except Exception as e:
+        logger.error(f"Error processing message: {e}", exc_info=True)
+        await message.reply("Sorry, I encountered an error while processing your message. Please try again later.")
 
 @client.event
 async def on_reaction_add(reaction, user):
@@ -143,6 +156,11 @@ async def on_reaction_add(reaction, user):
 async def on_ready():
     logger.info("Logged in as %s", client.user.name)
 
+@client.event
+async def on_member_join(member):
+    logger.info(f"User {member.name} joined the server")
+    await member.send(f"Hey {member.name}, welcome to Virtura. I'm Nova, your date manager. I'll help you find love in the metaverse.")
+
 async def cleanup():
     """Cleanup function to save states and close connections."""
     logger.info("Starting cleanup...")
@@ -154,45 +172,38 @@ async def cleanup():
     if not client.is_closed():
         await client.close()
     
-    # Stop the event loop
-    loop = asyncio.get_event_loop()
-    loop.stop()
-    
     logger.info("Cleanup complete.")
 
 def handle_signals():
     """Set up signal handlers."""
     loop = asyncio.get_event_loop()
-    loop.add_signal_handler(signal.SIGINT, lambda: loop.create_task(cleanup()))
-    loop.add_signal_handler(signal.SIGTERM, lambda: loop.create_task(cleanup()))
+    loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(cleanup()))
+    loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(cleanup()))
     logger.info("Signal handlers registered")
 
-if __name__ == "__main__":
+async def start_bot(token: str):
+    """Start the bot with the given token."""
+    try:
+        await client.start(token)
+    finally:
+        await cleanup()
+
+def main():
     logging.info("Starting bot...")
     
-    async def runner():
-        try:
-            await client.start(discord_token)
-        finally:
-            await cleanup()
+    discord_token = os.getenv("DISCORD_API_TOKEN")
+    if not discord_token:
+        logger.error("DISCORD_API_TOKEN environment variable is not set")
+        exit(1)
+        
+    handle_signals()
+    logger.info("Starting Discord client...")
     
     try:
-        handle_signals()
-        discord_token = os.getenv("DISCORD_API_TOKEN")
-        if not discord_token:
-            logger.error("DISCORD_API_TOKEN environment variable is not set")
-            exit(1)
-            
-        logger.info("Starting Discord client...")
-        asyncio.run(runner())  # This ensures cleanup runs even on errors
+        asyncio.run(start_bot(discord_token))
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt...")
     except Exception as e:
         logger.error(f"Error starting bot: {e}")
     finally:
-        # Run cleanup synchronously one last time to ensure states are saved
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(save_all_states())
-        loop.close()
         logger.info("Bot shutdown complete.")

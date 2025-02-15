@@ -5,14 +5,50 @@ import pathlib
 import random
 import uuid
 from pydantic import Field
+from src.storage.manager import StorageManager
+import asyncio
 
 class StoreableBaseModel(BaseModel):
+    async def save_async(self, path: str | pathlib.Path):
+        """Save model data asynchronously using storage manager"""
+        storage = StorageManager()
+        await storage.storage.write_json(str(path), self.model_dump())
+    
     def save(self, path: str | pathlib.Path):
-        with open(path, 'w') as file:
-            file.write(self.model_dump_json())
+        """Synchronous wrapper for save_async"""
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.save_async(path))
+    
+    @classmethod
+    async def load_async(cls, path: str | pathlib.Path):
+        """Load model data asynchronously using storage manager"""
+        storage = StorageManager()
+        if await storage.storage.exists(str(path)):
+            data = await storage.storage.read_json(str(path))
+            return cls.model_validate(data)
+        return None
     
     @classmethod
     def load(cls, path: str | pathlib.Path):
+        """Synchronous wrapper for load_async"""
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(cls.load_async(path))
+        if result is None:
+            # Fall back to legacy file-based loading if async load fails
+            with open(path, 'r') as file:
+                return cls.model_validate_json(file.read())
+        return result
+
+    @classmethod
+    def load_from_file(cls, path: str | pathlib.Path):
         with open(path, 'r') as file:
             return cls.model_validate_json(file.read())
 

@@ -29,9 +29,11 @@ ENV DISCORD_TOKEN=""
 ENV CDP_API_KEY_NAME=""
 ENV CDP_API_KEY_PRIVATE_KEY=""
 ENV NETWORK_ID=""
+# Set PYTHONPATH to include the app directory
+ENV PYTHONPATH=/app
 
 # Expose the API port
-EXPOSE 8000
+EXPOSE 8080
 
 # Use a shell script to start both services
 COPY start.sh .

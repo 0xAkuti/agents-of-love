@@ -1,9 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from date_manager import DateManager
-from src.model import SimpleUser
-from src.token_registry import TokenRegistry, TokenMetadata, NFTMetadata
 import uvicorn
+
+from src.agents.date_manager import DateManager
+from src.models.model import SimpleUser
+from src.server.token_registry import TokenRegistry, NFTMetadata
 
 app = FastAPI(title="Date Manager API")
 
@@ -28,7 +29,7 @@ class ChatResponse(BaseModel):
 @app.get("/token/{token_id}", response_model=NFTMetadata)
 async def get_token_metadata(token_id: int):
     """Get metadata for a specific token ID."""
-    metadata = token_registry.get_nft_metadata(token_id)
+    metadata = await token_registry.get_nft_metadata(token_id)
     if not metadata:
         raise HTTPException(status_code=404, detail="Token not found")
     return metadata
@@ -54,4 +55,4 @@ async def chat(request: AutonomeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("api:app", host="0.0.0.0", port=8080, reload=True) 

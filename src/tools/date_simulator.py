@@ -1,19 +1,24 @@
+from typing import Optional, List, Dict
+import os
+import dotenv
+import pathlib
+import argparse
+import asyncio
+
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.base import TaskResult
 from autogen_agentchat.conditions import MaxMessageTermination
 from autogen_agentchat.ui import Console
-from autogen_agentchat.messages import TextMessage
+from autogen_agentchat.messages import TextMessage, AgentEvent, ToolCallRequestEvent, ToolCallExecutionEvent
 from autogen_core import CancellationToken
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from typing import Optional, List, Dict
-import os
-import dotenv
-import pathlib
-from src.agent_with_wallet import AgentWithWallet
-from src.model import Agent
-import argparse
-import asyncio
+
+from src.models.agent_with_wallet import AgentWithWallet
+from src.models.model import Agent
+from src.storage.manager import StorageManager
+import time
+
 dotenv.load_dotenv()
 
 class DateSimulator:
@@ -27,7 +32,8 @@ class DateSimulator:
         self.model_client: Optional[OpenAIChatCompletionClient] = None
         self.scene_instruction: str = "Date Organizer, please set the scene and start the date."
         self.is_running: bool = False
-        
+        self.storage = StorageManager()
+
     def initialize_model_client(self):
         """Initialize the OpenAI model client."""
         self.model_client = OpenAIChatCompletionClient(
@@ -35,14 +41,16 @@ class DateSimulator:
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
     
-    def add_participant_from_agent(self, agent: Agent) -> AgentWithWallet:
+    async def add_participant_from_agent(self, agent: Agent) -> AgentWithWallet:
         """Add a new participant to the date simulation."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
         
-        self.participants[agent.name] = AgentWithWallet.from_agent(agent, model_client=self.model_client)
+        self.participants[agent.name] = await AgentWithWallet.from_agent(agent, model_client=self.model_client)
+        await self.participants[agent.name].initialize()
+        return self.participants[agent.name]
     
-    def add_participant(self, name: str, system_message: str) -> AgentWithWallet:
+    async def add_participant(self, name: str, system_message: str) -> AgentWithWallet:
         """Add a new participant to the date simulation."""
         if not self.model_client:
             raise RuntimeError("Model client not initialized. Call initialize_model_client() first.")
@@ -51,8 +59,10 @@ class DateSimulator:
             name=name,
             system_message=system_message,
             model_client=self.model_client,
+            reflect_on_tool_use=True
         )
         self.participants[name] = agent
+        await agent.initialize()
         return agent
         
     def set_date_organizer(self, system_message: Optional[str] = None, wallet_address: Optional[str] = None):
@@ -91,9 +101,20 @@ class DateSimulator:
         """Create the selector prompt for the group chat."""
         return pathlib.Path("prompts/speaker_selector.txt").read_text()
         
-    def _format_conversation_history(self, messages: List[TextMessage]) -> str:
+    def _format_conversation_history(self, messages: List[TextMessage|AgentEvent]) -> str:
         """Format the conversation history for summary."""
         return "\n\n".join([f"*{msg.source}*: {msg.content}" for msg in messages if isinstance(msg, TextMessage)])
+        
+    def _format_conversation_history_with_tool_calls(self, messages: List[TextMessage|AgentEvent]) -> str:
+        """Format the conversation history for summary."""
+        output = []
+        for msg in messages:
+            if isinstance(msg, TextMessage):
+                output.append(f"**{msg.source}**: {msg.content}")
+            elif isinstance(msg, ToolCallExecutionEvent):
+                for tool_call in msg.content:
+                    output.append(f"**{msg.source}** used a tool: {tool_call.content}")
+        return "\n\n".join(output)
         
     async def simulate_date(self, scene_instruction: Optional[str] = None) -> TaskResult:
         """Run the date simulation."""
@@ -128,7 +149,7 @@ class DateSimulator:
             system_message=pathlib.Path("prompts/date_summarizer.txt").read_text(),
             model_client=self.model_client,
         )   
-        conversation_history = self._format_conversation_history(conversation_result.messages)
+        conversation_history = self._format_conversation_history_with_tool_calls(conversation_result.messages)
         summary_response = await summarizer.on_messages(
             [TextMessage(
                 content=f"Please summarize the date between {', '.join(self.participants.keys())}:\n\n{conversation_history}",
@@ -140,17 +161,15 @@ class DateSimulator:
 
     def save_conversation(self, result: TaskResult, summary: str):
         # Get next conversation number
-        i = 1
-        base_path = pathlib.Path("./conversations")
-        while any(f.name.startswith(f"{i}_") for f in base_path.glob("*.md")):
-            i += 1
-            
-        # save chat and summary as markdown
-        with open(base_path / f"{i}_{'_'.join(self.participants.keys())}.md", "w") as f:
-            f.write(f"# Conversation between {'_'.join(self.participants.keys())}\n")
-            f.write(self._format_conversation_history(result.messages))
-            f.write("\n# Summary\n")
-            f.write(summary)
+        conversation_id = int(time.time())
+        content = []
+        conversation = self._format_conversation_history_with_tool_calls(result.messages)
+        content.append(f"# Conversation between {'_'.join(self.participants.keys())}\n")
+        content.append(conversation)
+        content.append(f"\n# Summary\n")
+        content.append(summary)
+        self.storage.save_conversation(conversation_id, self.participants.keys(), content)
+
 
 async def main(args: argparse.Namespace):
     simulator = DateSimulator()
