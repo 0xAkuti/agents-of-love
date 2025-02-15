@@ -272,7 +272,7 @@ class DateManager:
         except Exception as e:
             nft_result = f"Error minting NFT: {str(e)}"
         
-        self.simulator.save_conversation(result, summary)
+        await self.simulator.save_conversation(result, summary)
         return f"{conversation}\n\n{nft_result}"
         
     async def create_user_avatar(self, name: str, interests: List[str], personality_traits: List[str], conversation_style: List[str], dislikes: List[str], areas_of_expertise_and_knowledge: List[str], passionate_topics: List[str], user_appearance: List[str]):

@@ -159,7 +159,7 @@ class DateSimulator:
         )
         return summary_response.chat_message.content
 
-    def save_conversation(self, result: TaskResult, summary: str):
+    async def save_conversation(self, result: TaskResult, summary: str):
         # Get next conversation number
         conversation_id = int(time.time())
         content = []
@@ -168,7 +168,7 @@ class DateSimulator:
         content.append(conversation)
         content.append(f"\n# Summary\n")
         content.append(summary)
-        self.storage.save_conversation(conversation_id, self.participants.keys(), content)
+        await self.storage.save_conversation(conversation_id, self.participants.keys(), content)
 
 
 async def main(args: argparse.Namespace):
@@ -187,7 +187,7 @@ async def main(args: argparse.Namespace):
     summary = await simulator.summarize_date(result)
     print('SUMMARY:\n')
     print(summary)
-    simulator.save_conversation(result, summary)
+    await simulator.save_conversation(result, summary)
 
 if __name__ == "__main__":
     # run like this:
