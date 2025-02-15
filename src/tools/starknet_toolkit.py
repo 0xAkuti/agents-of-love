@@ -267,6 +267,9 @@ class StarknetToolkit:
     async def transfer_usdc(self, recipient: str, amount: float) -> str:
         """Transfer USDC to recipient"""
         await self.setup_account_if_needed(FUNDER_SEED)
+        balance = await get_usdc_balance(self._seed)
+        if balance < amount:
+            return f"You do not have enough USDC to transfer. Your balance is {balance:.2f} USDC, you are missing {amount - balance:.2f} USDC"
         tx = await transfer_usdc(self._seed, int(recipient, 16), amount)
         tx_hash = hex(tx.hash)
         explorer_link = f"{self.explorer_url}/tx/{tx_hash}"
@@ -280,6 +283,9 @@ class StarknetToolkit:
     async def transfer_strk(self, recipient: str, amount: float) -> str:
         """Transfer STRK to recipient"""
         await self.setup_account_if_needed(FUNDER_SEED)
+        balance = await get_strk_balance(self._seed)
+        if balance < amount:
+            return f"You do not have enough STRK to transfer. Your balance is {balance:.2f} STRK, you are missing {amount - balance:.2f} STRK"
         tx = await transfer_strk(self._seed, int(recipient, 16), amount)
         tx_hash = hex(tx.hash)
         explorer_link = f"{self.explorer_url}/tx/{tx_hash}"
