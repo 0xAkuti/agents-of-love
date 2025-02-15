@@ -228,7 +228,7 @@ class DateManager:
         
         available_participants = [f"{p.name}: {p.system_prompt}" for p in self.available_participants.values()]
                 
-        return "Available participants for dating:\n" + "\n".join(available_participants) + "\n When referring to a participant description refer to them in third person."
+        return "Available participants for dating:\n" + "\n".join(available_participants) + "\n When referring to a participant description refer to them in third person, not with 'You are...' but 'He/She is...'"
         
     async def run_date_simulation(self,  match_name: str, scene_instruction: Optional[str] = None) -> str:
         """Run a date simulation with the specified match.
