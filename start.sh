@@ -15,7 +15,7 @@ echo "Starting API ..."
 python -m uvicorn src.server.api:app \
     --host 0.0.0.0 \
     --port 8080 \
-    --workers 1
+    --workers 1 &
 API_PID=$!
 
 echo "Starting Discord bot..."
