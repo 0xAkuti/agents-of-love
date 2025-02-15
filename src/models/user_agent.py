@@ -55,5 +55,5 @@ class UserAgentWithWallet(AgentWithWallet):
             model_provider=ModelProvider(provider='openai', model='gpt-4o-mini'),
             role=AgentRole.USER,
         )
-        await storage_manager.save_user_agent(user.id, user_agent.model_dump())
+        await storage_manager.save_user_agent(user.id, user_agent.model_dump(mode='json'))
         return await cls.from_agent(user_agent, user_id=user.id)
