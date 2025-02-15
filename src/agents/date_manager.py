@@ -59,13 +59,17 @@ class DateManager:
     
     async def initialize(self):
         """Initialize the date manager with user agent and manager agent."""
+        logging.info("Initializing date manager...")
         await self.token_registry.initialize()
         
         if self.user:
-            print(f"Loading user avatar for {self.user.name} ({self.user.id})")
+            logging.info(f"Loading user avatar for {self.user.name} ({self.user.id})")
             self.user_agent = await UserAgentWithWallet.load_or_create(self.user)
+            logging.info("Created user agent, initializing...")
             await self.user_agent.initialize()
+            logging.info("User agent initialized")
             
+            logging.info("Creating manager agent...")
             self.manager_agent = await AgentWithWallet.from_json(
                 path=pathlib.Path("agents/date_manager.json"),
                 system_message=self.manager_template,
@@ -79,7 +83,9 @@ class DateManager:
                 reflect_on_tool_use=True,
                 memory=[self.memory]
             )
+            logging.info("Manager agent created, initializing memory...")
             await self.init_memory()
+            logging.info("Date manager initialization complete")
         else:
             raise ValueError("User is required for now")
     
@@ -308,11 +314,17 @@ class DateManager:
         
     async def get_manager_response(self, user_input: str) -> str:
         """Get a response from the manager agent."""
-        response = await self.manager_agent.on_messages(
-            [TextMessage(content=user_input, source="user")],
-            cancellation_token=CancellationToken(),
-        )
-        return response.chat_message.content
+        logging.info(f"Getting manager response for input: {user_input[:100]}...")
+        try:
+            response = await self.manager_agent.on_messages(
+                [TextMessage(content=user_input, source="user")],
+                cancellation_token=CancellationToken(),
+            )
+            logging.info("Got response from manager agent")
+            return response.chat_message.content
+        except Exception as e:
+            logging.error(f"Error getting manager response: {e}", exc_info=True)
+            return "Sorry, I encountered an error while processing your message. Please try again later."
         
     async def start_conversation(self):
         """Start the conversation with the user to collect information and run the date."""

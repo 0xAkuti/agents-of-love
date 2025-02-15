@@ -111,19 +111,32 @@ async def on_message(message: discord.Message):
         return
     if message.author.bot: # Not talking to other bots
         return
-    # Show typing indicator while processing
-    async with message.channel.typing():
-        # Get or create date manager for this user
-        date_manager = await get_date_manager(message.author)
-        date_manager.date_started_callback = lambda: asyncio.create_task(message.channel.send(f"Great, I am organizing the date for you. I'll let you know how it went in a bit."))
         
-        # Get response from date manager
-        response = await date_manager.get_manager_response(f'{message.author.display_name}: {message.content}')
-        
-        # Split response into chunks and send each chunk
-        chunks = split_message(response)
-        for chunk in chunks:
-            await message.reply(chunk)
+    try:
+        # Show typing indicator while processing
+        async with message.channel.typing():
+            logger.info("Getting date manager for user...")
+            # Get or create date manager for this user
+            date_manager = await get_date_manager(message.author)
+            logger.info("Got date manager, setting callback...")
+            
+            date_manager.date_started_callback = lambda: asyncio.create_task(
+                message.channel.send("Great, I am organizing the date for you. I'll let you know how it went in a bit.")
+            )
+            
+            logger.info("Getting manager response...")
+            # Get response from date manager
+            response = await date_manager.get_manager_response(f'{message.author.display_name}: {message.content}')
+            logger.info(f"Got response: {response[:100]}...")
+            
+            # Split response into chunks and send each chunk
+            chunks = split_message(response)
+            for chunk in chunks:
+                await message.reply(chunk)
+                
+    except Exception as e:
+        logger.error(f"Error processing message: {e}", exc_info=True)
+        await message.reply("Sorry, I encountered an error while processing your message. Please try again later.")
 
 @client.event
 async def on_reaction_add(reaction, user):

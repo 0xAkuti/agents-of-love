@@ -33,7 +33,7 @@ ENV NETWORK_ID=""
 ENV PYTHONPATH=/app
 
 # Expose the API port
-EXPOSE 8000
+EXPOSE 8080
 
 # Use a shell script to start both services
 COPY start.sh .
