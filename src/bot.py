@@ -133,6 +133,7 @@ async def on_message(message: discord.Message):
             chunks = split_message(response)
             for chunk in chunks:
                 await message.reply(chunk)
+            await date_manager.save_state()
                 
     except Exception as e:
         logger.error(f"Error processing message: {e}", exc_info=True)
