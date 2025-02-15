@@ -122,10 +122,6 @@ class DateManager:
             
     async def _load_state(self) -> bool:
         """Load the previous state if it exists and returns whether it was loaded successfully."""
-        state_path = self._get_state_path()
-        if not state_path.exists():
-            return False
-            
         try:
             # Read the file content first
             state = await self.storage_manager.load_agent_state(self.user.id)
@@ -169,7 +165,11 @@ class DateManager:
     
     async def init_memory(self):
         """Initialize the date manager."""
+        print("Initializing memory...")
+        logging.info("Initializing memory...")
         if await self._load_state():
+            print("Loaded state")
+            logging.info("Loaded state")
             return
             
         if self.user_agent and self.user_agent.agent_data.user_profile:
