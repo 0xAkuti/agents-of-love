@@ -89,12 +89,6 @@ class DateManager:
         else:
             raise ValueError("User is required for now")
     
-    def _get_state_path(self) -> pathlib.Path:
-        """Get the path to the state file for the current user."""
-        if not self.user:
-            raise ValueError("No user set")
-        return self.states_dir / f"{self.user.id}_state.json"
-
     async def save_state(self):
         """Save the current state of the date manager."""
         if not self.user:

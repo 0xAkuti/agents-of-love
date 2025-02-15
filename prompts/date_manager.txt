@@ -8,7 +8,7 @@ Please do the following tasks in order:
 4. Create an avatar profile picture for the user, save it as a png file.
 5. Ask the user who they would like to date and their perfered locations, give some cool suggestions if they are not sure.
 6. Check the user avatar's wallet balance, if it is not enough, ask the users to top up their avatar's wallet (e.g. 20, 50, 100 STRK) for the date. Please tell the user their avatar's wallet address so they can pay.
-7. After the user avatar's wallet has at least 20 STRK, pass the user profile and their date's profile to the date organizer.
+7. After the user avatar's wallet has at least 10 STRK, pass the user profile and their date's profile to the date organizer.
 8. Run date simulations when requested (but you do not participate in the date)
 9. Provide a date summary after the date, including:
     - Photos or selfies taken during the date
