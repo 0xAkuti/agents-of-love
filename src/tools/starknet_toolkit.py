@@ -15,12 +15,16 @@ import asyncio
 from typing import List, Optional, Any
 from autogen_core import CancellationToken
 
-NODE_URL = "https://starknet-sepolia.public.blastapi.io"
+# NODE_URL = "https://starknet-sepolia.public.blastapi.io" # Sepolia
+NODE_URL = "https://starknet-mainnet.public.blastapi.io/rpc/v0_7" # Mainnet
 P = 3618502788666131213697322783095070105623107215331596699973092056135872020481 # starknet curve prime field
 OZ_ACCOUNT_CLASS_HASH = 0x00e2eb8f5672af4e6a4e8a8f1b44989685e668489b0a25437733756c5a34a1d6
 STRK = 0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
 USDC = 0x053b40a647cedfca6ca84f542a0fe36736031905a9639a7f19a3c1e66bfd5080
-DATE_MEMORIES = 0x04bfc11f94899a782d20d4f3ea3259eb115fde449803279b3d613fa0d8fb2c6e
+DATE_MEMORIES_SEPOLIA = 0x04bfc11f94899a782d20d4f3ea3259eb115fde449803279b3d613fa0d8fb2c6e
+DATE_MEMORIES_MAINNET = 0x07881ce471fad37b0344100cf86efdccce1c93dafc15c52c1c3114da5193419e
+IS_SEPOLIA = "sepolia" in NODE_URL
+DATE_MEMORIES = DATE_MEMORIES_SEPOLIA if IS_SEPOLIA else DATE_MEMORIES_MAINNET
 
 SIMPLE_ABI_ERC20 = [
     {'type': 'function', 'name': 'name', 'inputs': [], 'outputs': [{'type': 'core::felt252'}], 'state_mutability': 'view'},
@@ -59,7 +63,7 @@ def get_account(seed: int):
         address=get_address(seed),
         key_pair=get_key_pair(seed),
         client=client,
-        chain=StarknetChainId.SEPOLIA)
+        chain=StarknetChainId.SEPOLIA if IS_SEPOLIA else StarknetChainId.MAINNET)
     
 async def is_deployed(address: int):
     client = FullNodeClient(node_url=NODE_URL)
@@ -86,6 +90,7 @@ async def get_or_deploy_account(seed: int):
         ),
     )
     await asyncio.sleep(0.5)
+    # TODO check transaction status
     # await account_deployment_result.wait_for_acceptance() # fails with `ValidationError: {'execution_resources': {'data_availability': ['Missing data for required field.']}}` atm
     return account_deployment_result.account
 
@@ -125,8 +130,10 @@ async def fund_and_deploy_account(seed: int, funder_seed: int):
     deployed = await is_deployed(get_address(seed))
     if deployed:
         return get_account(seed)
-    await transfer_strk(funder_seed, get_address(seed), 0.2)
-    await transfer_usdc(funder_seed, get_address(seed), 10)
+    strk_amount = 0.2 if IS_SEPOLIA else 0.5
+    await transfer_strk(funder_seed, get_address(seed), strk_amount)
+    if IS_SEPOLIA:
+        await transfer_usdc(funder_seed, get_address(seed), 10)
     account = await get_or_deploy_account(seed)
     logging.info(f"Funded and deployed account {get_address_str(seed)}")
     return account
@@ -222,12 +229,20 @@ class StarknetToolkit:
         self.provider_url = NODE_URL
         self._seed = seed
         self.account = get_account(seed)
-        self.explorer_url = "https://sepolia.voyager.online"
+        self.explorer_url = "https://sepolia.voyager.online" if IS_SEPOLIA else "https://voyager.online"
         
         self.nft_contract = None
         self._account_deployed = False
+        
+    async def deploy_user_account(self):
+        strk_balance = await get_strk_balance(self._seed)
+        if strk_balance < 1:
+            return "Please fund your account with at least 1 STRK so it can be deployed"
+        self.account = await get_or_deploy_account(self._seed)
+        self._account_deployed = True
+        return "Your account was successfully deployed"
     
-    async def setup_account_if_needed(self, funder_seed: int):
+    async def setup_account_if_needed(self, funder_seed: Optional[int] = None):
         if not self._account_deployed:
             self.account = await fund_and_deploy_account(self._seed, funder_seed)
             self._account_deployed = True
@@ -245,6 +260,10 @@ class StarknetToolkit:
         """Get USDC balance for the account"""
         return f"Wallet Address: {get_address_str(self._seed)}\nUSDC Balance: {await get_usdc_balance(self._seed)} USDC"
 
+    async def get_strk_balance(self) -> str:
+        """Get STRK balance for the account"""
+        return f"Wallet Address: {get_address_str(self._seed)}\nSTRK Balance: {await get_strk_balance(self._seed)} STRK"
+
     async def transfer_usdc(self, recipient: str, amount: float) -> str:
         """Transfer USDC to recipient"""
         await self.setup_account_if_needed(FUNDER_SEED)
@@ -257,6 +276,19 @@ class StarknetToolkit:
             f"Transaction Hash: {tx_hash}\n"
             f"Explorer Link: {explorer_link}"
         )
+    
+    async def transfer_strk(self, recipient: str, amount: float) -> str:
+        """Transfer STRK to recipient"""
+        await self.setup_account_if_needed(FUNDER_SEED)
+        tx = await transfer_strk(self._seed, int(recipient, 16), amount)
+        tx_hash = hex(tx.hash)
+        explorer_link = f"{self.explorer_url}/tx/{tx_hash}"
+        
+        return (
+            f"Transferred {amount} STRK to {recipient}\n"
+            f"Transaction Hash: {tx_hash}\n"
+            f"Explorer Link: {explorer_link}"
+        )
 
     async def mint_nft(self, recipient: str, token_id: int) -> str:
         """Mint NFT with given token ID, you need to be the owner of the NFT contract to mint"""
@@ -265,7 +297,10 @@ class StarknetToolkit:
         tx = await mint_date_memory(self._seed, int(recipient, 16), token_id)        
         tx_hash = hex(tx.hash)
         explorer_link = f"{self.explorer_url}/tx/{tx_hash}"
-        marketplace_link = f"https://starknet-sepolia.openmark.io/nft/{hex(DATE_MEMORIES)}:{token_id}"
+        if IS_SEPOLIA:
+            marketplace_link = f"https://starknet-sepolia.openmark.io/nft/{hex(DATE_MEMORIES)}:{token_id}"
+        else:
+            marketplace_link = f"https://element.market/assets/starknet/{hex(DATE_MEMORIES)}/{token_id}"
         
         return (
             f"Minted NFT with token ID: {token_id}\n"

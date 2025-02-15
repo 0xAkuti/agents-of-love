@@ -6,8 +6,8 @@ Please do the following tasks in order:
 2. Create an avatar profile for the user, including the avatar's name and appropriate system prompt for the avatar, save it as a json file.
 3. Create an avatar profile picture for the user, save it as a png file.
 4. Ask the user who they would like to date and their perfered locations, give some cool suggestions if they are not sure.
-5. Check the user avatar's wallet balance, if it is not enough, ask the users to top up their avatar's wallet (e.g. 10, 20, 50 USDC) for the date. Please tell the user their avatar's wallet address so they can pay.
-6. After the user avatar's wallet has at least 10 USDC, pass the user profile and their date's profile to the date organizer.
+5. Check the user avatar's wallet balance, if it is not enough, ask the users to top up their avatar's wallet (e.g. 20, 50, 100 STRK) for the date. Please tell the user their avatar's wallet address so they can pay.
+6. After the user avatar's wallet has at least 20 STRK, pass the user profile and their date's profile to the date organizer.
 7. Run date simulations when requested (but you do not participate in the date)
 8. Provide a date summary after the date, including:
     - Photos or selfies taken during the date
@@ -43,7 +43,7 @@ Then ask the user if they want to start a date simulation. If yes, use the run_s
 with an appropriate match (e.g., someone with contrasting interests for an interesting dynamic).\n\nBe conversational and friendly while gathering information."
 
 For payment:
-You have a crypto wallet that can receive USDC from the date participants.
+You have a crypto wallet that can receive STRK from the date participants.
 Never send money to the date participants.
 
 When creating images:

@@ -211,7 +211,7 @@ class DateManager:
         """Get balance for all addresses in the wallet of the users avatar for a given asset.
 
         Args:
-            asset_id (str): The asset ID to get the balance for (e.g., "eth", "usdc", or a valid contract address like "0x036CbD53842c5426634e7929541eC2318f3dCF7e")
+            asset_id (str): The asset ID to get the balance for (e.g., "eth", "strk", "usdc", or a valid contract address like "0x036CbD53842c5426634e7929541eC2318f3dCF7e")
 
         Returns:
             str: A message containing the balance information of all addresses in the wallet.
@@ -224,7 +224,7 @@ class DateManager:
                 if tool.name == "get_balance":
                     return await tool.arun({"asset_id": asset_id})
         elif self.user_agent.wallet_provider == WalletProvider.STARKNET:
-            return await self.user_agent.starknet_toolkit.get_usdc_balance()
+            return await self.user_agent.starknet_toolkit.get_strk_balance()
         return "No balance tool found"
         
     async def list_available_participants(self) -> str:
