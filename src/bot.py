@@ -132,7 +132,7 @@ async def on_message(message: discord.Message):
             # Split response into chunks and send each chunk
             chunks = split_message(response)
             for chunk in chunks:
-                await message.reply(chunk)
+                await message.reply(chunk, suppress_embeds=True)
             await date_manager.save_state()
                 
     except Exception as e:
