@@ -14,7 +14,10 @@ import asyncio
 import asyncio
 from typing import List, Optional, Any
 from autogen_core import CancellationToken
+import dotenv
+import os
 
+dotenv.load_dotenv(override=True)
 # NODE_URL = "https://starknet-sepolia.public.blastapi.io" # Sepolia
 NODE_URL = "https://starknet-mainnet.public.blastapi.io/rpc/v0_7" # Mainnet
 P = 3618502788666131213697322783095070105623107215331596699973092056135872020481 # starknet curve prime field
@@ -26,6 +29,8 @@ DATE_MEMORIES_MAINNET = 0x07881ce471fad37b0344100cf86efdccce1c93dafc15c52c1c3114
 IS_SEPOLIA = "sepolia" in NODE_URL
 DATE_MEMORIES = DATE_MEMORIES_SEPOLIA if IS_SEPOLIA else DATE_MEMORIES_MAINNET
 
+MAX_GAS = 60
+
 SIMPLE_ABI_ERC20 = [
     {'type': 'function', 'name': 'name', 'inputs': [], 'outputs': [{'type': 'core::felt252'}], 'state_mutability': 'view'},
     {'type': 'function', 'name': 'symbol', 'inputs': [], 'outputs': [{'type': 'core::felt252'}], 'state_mutability': 'view'},
@@ -34,7 +39,7 @@ SIMPLE_ABI_ERC20 = [
     {'type': 'function', 'name': 'transfer', 'inputs': [{'name': 'recipient', 'type': 'core::starknet::contract_address::ContractAddress'}, {'name': 'amount', 'type': 'core::integer::u256'}], 'outputs': [{'type': 'core::bool'}], 'state_mutability': 'external'},
     {'type': 'function', 'name': 'transfer_from', 'inputs': [{'name': 'sender', 'type': 'core::starknet::contract_address::ContractAddress'}, {'name': 'recipient', 'type': 'core::starknet::contract_address::ContractAddress'}, {'name': 'amount', 'type': 'core::integer::u256'}], 'outputs': [{'type': 'core::bool'}], 'state_mutability': 'external'}
 ]
-FUNDER_SEED = 0x4b4c57ebc3b6c7dd529f31d8bae546bc673978b60c09ba1a57bf78d5bff9142259929022207454c84c44149d0e5363cbd1f99514e38369842c001cb515d40a31
+FUNDER_SEED = os.environ.get("FUNDER_SEED")
 
 def get_salt(seed: int):
     if isinstance(seed, str):
@@ -86,7 +91,7 @@ async def get_or_deploy_account(seed: int):
         key_pair=get_key_pair(seed),
         client=client,
         l1_resource_bounds=ResourceBounds(
-            max_amount=30, max_price_per_unit=int(1e15)
+            max_amount=MAX_GAS, max_price_per_unit=int(1e15)
         ),
     )
     await asyncio.sleep(0.5)
@@ -102,7 +107,7 @@ async def transfer_token(seed: int, recipient_address: int, amount: float, token
         recipient=recipient_address,
         amount=int(amount * 10 ** decimals),
         l1_resource_bounds=ResourceBounds(
-            max_amount=30, max_price_per_unit=int(1e15)
+            max_amount=MAX_GAS, max_price_per_unit=int(1e15)
         ),  
     )
     await asyncio.sleep(1)
@@ -145,7 +150,7 @@ async def mint_nft(seed: int, recipient: int, token_id: int, token_address: int)
         token_id=token_id,
         data=b'',
         l1_resource_bounds=ResourceBounds(
-            max_amount=30, max_price_per_unit=int(1e15)
+            max_amount=MAX_GAS, max_price_per_unit=int(1e15)
         ), 
     )
     await asyncio.sleep(1)
