@@ -168,7 +168,9 @@ class DateSimulator:
         content.append(conversation)
         content.append(f"\n# Summary\n")
         content.append(summary)
-        await self.storage.save_conversation(conversation_id, self.participants.keys(), content)
+        # Join the content list into a string before saving
+        content_str = "\n".join(content)
+        await self.storage.save_conversation(conversation_id, self.participants.keys(), content_str)
 
 
 async def main(args: argparse.Namespace):
