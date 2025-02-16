@@ -284,7 +284,7 @@ class StarknetToolkit:
 
     async def get_wallet_info(self) -> str:
         """Get wallet address and network"""
-        network = 'starknet-sepolia'
+        network = 'starknet-sepolia' if IS_SEPOLIA else 'starknet-mainnet'
         return f"Wallet Address: {get_address_str(self._seed)} on network {network}"
 
     async def get_usdc_balance(self) -> str:
