@@ -54,10 +54,12 @@ class AgentWithWallet(AssistantAgent):
         self.wallet_data = self.wallet_store.load_wallet_sync(str(self.agent_id))
         
         # Initialize CDP agentkit
-        self.cdp_agentkit = CdpAgentkitWrapper(
-            network_id="base-sepolia",
-            cdp_wallet_data=json.dumps(self.wallet_data.to_dict()) if self.wallet_data else None
-        )
+        if self.wallet_data is None:
+            # only create wallet if it doesn't exist yet
+            self.cdp_agentkit = CdpAgentkitWrapper(
+                network_id="base-sepolia",
+                cdp_wallet_data=json.dumps(self.wallet_data.to_dict()) if self.wallet_data else None
+            )
         
         # Initialize tools list
         tools = kwargs.pop("tools", [])
