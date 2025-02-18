@@ -29,7 +29,7 @@ DATE_MEMORIES_MAINNET = 0x07881ce471fad37b0344100cf86efdccce1c93dafc15c52c1c3114
 IS_SEPOLIA = "sepolia" in NODE_URL
 DATE_MEMORIES = DATE_MEMORIES_SEPOLIA if IS_SEPOLIA else DATE_MEMORIES_MAINNET
 
-MAX_GAS = 120
+MAX_GAS = 200
 
 SIMPLE_ABI_ERC20 = [
     {'type': 'function', 'name': 'name', 'inputs': [], 'outputs': [{'type': 'core::felt252'}], 'state_mutability': 'view'},
