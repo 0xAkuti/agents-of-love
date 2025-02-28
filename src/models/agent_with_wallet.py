@@ -12,7 +12,7 @@ from cdp_langchain.agent_toolkits import CdpToolkit
 from cdp_langchain.utils.cdp_agentkit_wrapper import CdpAgentkitWrapper
 
 from src.models.model import Agent, ModelProvider, AgentRole
-from src.server.wallet_store import WalletStore
+from src.server.wallet_store import WalletStore, WalletData
 from src.tools.cdp_landchain_adapter import CDPLangChainToolAdapter
 import enum
 
@@ -52,7 +52,6 @@ class AgentWithWallet(AssistantAgent):
         
         # Load wallet data synchronously for initialization
         self.wallet_data = self.wallet_store.load_wallet_sync(str(self.agent_id))
-        
         # Initialize CDP agentkit
         if self.wallet_data is None:
             # only create wallet if it doesn't exist yet
@@ -60,6 +59,7 @@ class AgentWithWallet(AssistantAgent):
                 network_id="base-sepolia",
                 cdp_wallet_data=json.dumps(self.wallet_data.to_dict()) if self.wallet_data else None
             )
+            self.wallet_data = WalletData.from_dict(self.cdp_agentkit.wallet.export_data().to_dict())
         
         # Initialize tools list
         tools = kwargs.pop("tools", [])
